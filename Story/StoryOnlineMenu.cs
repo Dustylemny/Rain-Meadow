@@ -71,22 +71,22 @@ namespace RainMeadow
 
         public StoryOnlineMenu(ProcessManager manager) : base(manager)
         {
-            playerSelectedSlugcats = new SlugcatStats.Name[4];
             SetupSelectableSlugcats();
             ID = OnlineManager.lobby.gameMode.MenuProcessId();
             storyGameMode = (StoryGameMode)OnlineManager.lobby.gameMode;
             storyGameMode.Sanitize();
+            LoadSelectedSlugcatsFromPreviousSession();
             SetCampaign(slugcatPages[slugcatPageIndex].slugcatNumber);
             restartCheckboxPos = restartCheckbox.pos;
             ModifyExistingMenuItems();
 
             if (ModManager.JollyCoop)
             {
-                for (int i = 0; i < playerSelectedSlugcats.Length; i++)
+                for (int i = 0; i < playerSelectedSlugcats!.Length; i++)
                 {
                     if (ModManager.JollyCoop && i < manager.rainWorld.options.jollyPlayerOptionsArray.Length)
                     {
-                        manager.rainWorld.options.jollyPlayerOptionsArray[i].playerClass = storyGameMode.currentCampaign;
+                        manager.rainWorld.options.jollyPlayerOptionsArray[i].playerClass = playerSelectedSlugcats.GetValueOrDefault(i, storyGameMode.currentCampaign);
                     }
                 }
 
@@ -121,8 +121,12 @@ namespace RainMeadow
             SetupOnlineMenuItems();
             UpdatePlayerList();
 
-            slugcatPageIndex = indexFromColor(storyGameMode.currentCampaign);
-            UpdateSelectedSlugcatInMiscProg();
+            int index = indexFromColor(storyGameMode.currentCampaign);
+            if (index > 0)
+            {
+                slugcatPageIndex = index;
+                UpdateSelectedSlugcatInMiscProg();
+            }
 
             MatchmakingManager.OnPlayerListReceived += OnlineManager_OnPlayerListReceived;
 
@@ -150,7 +154,7 @@ namespace RainMeadow
         {
             if ((playerSelectedSlugcats[player] != slugcat && playerSelectedSlugcats[player] != null) || (playerSelectedSlugcats[player] == null && slugcatColorOrder[slugcatPageIndex] != slugcat))
             {
-                if (ModManager.JollyCoop)
+                if (ModManager.JollyCoop && player < manager.rainWorld.options.jollyPlayerOptionsArray.Length)
                 {
                     manager.rainWorld.options.jollyPlayerOptionsArray[player].playerClass = slugcat;
                 }
@@ -421,14 +425,7 @@ namespace RainMeadow
             {
                 RemoveSlugcatList();
                 for (int i = 0; i < playerSelectedSlugcats.Length; i++)
-                {
-                    if (ModManager.JollyCoop && i < manager.rainWorld.options.jollyPlayerOptionsArray.Length)
-                    {
-                        manager.rainWorld.options.jollyPlayerOptionsArray[i].playerClass = storyGameMode.currentCampaign;
-                    }
-
                     SetSelectedSlugcat(i, storyGameMode.currentCampaign);
-                }
             }
             else
             {
@@ -676,14 +673,11 @@ namespace RainMeadow
             }
             return [.. slugcatButtons];
         }
-        private void UpdateUponChangingSlugcat(SlugcatStats.Name scug)
+        public void LoadSelectedSlugcatsFromPreviousSession()
         {
-            if (colorsCheckbox != null)
-            {
-                colorsCheckbox.Checked = colorChecked; //this.IsCustomColorEnabled(scug); //automatically opens color interface if enabled
-            }
+            storyGameMode.playerMenuStoredSlugcats ??= new SlugcatStats.Name[4];
+            playerSelectedSlugcats = storyGameMode.playerMenuStoredSlugcats;
         }
-
         public void AddMessage(string user, string message)
         {
             if (OnlineManager.lobby == null) return;

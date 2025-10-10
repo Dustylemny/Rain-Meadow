@@ -28,6 +28,7 @@ namespace RainMeadow
         public bool requireCampaignSlugcat;
         public string? saveStateString;
         public bool lastWarpIsEcho = false;
+        public SlugcatStats.Name?[] playerMenuStoredSlugcats;
 
         // TODO: split these out for other gamemodes to reuse (see Story/StoryMenuHelpers for methods)
         public Dictionary<string, bool> storyBoolRemixSettings;
