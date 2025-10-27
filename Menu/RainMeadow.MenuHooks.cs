@@ -47,6 +47,7 @@ namespace RainMeadow
             new Hook(typeof(ButtonTemplate).GetProperty("CurrentlySelectableNonMouse", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public).GetMethod, On_ButtonTemplate_Selectable);
             new Hook(typeof(MenuObject).GetProperty("Container", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public).GetMethod, MenuObject_Container);
             On.Menu.SlugcatSelectMenu.GetSaveGameData += SlugcatSelectMenu_GetSaveGameData;
+            On.Menu.SlideShow.ctor += SlideShow_ctor;
         }
         void IL_Menu_Update(ILContext il)
         {
@@ -489,6 +490,17 @@ namespace RainMeadow
                 }
             }
             return orig(self, pageIndex);
+        }
+
+        private void SlideShow_ctor(On.Menu.SlideShow.orig_ctor orig, SlideShow self,ProcessManager manager, SlideShow.SlideShowID slideShowID)
+        {
+            orig(self, manager, slideShowID);
+            if (OnlineManager.lobby == null) return;
+            if (!ModManager.Watcher) return;
+            bool gotoSleepScreen = slideShowID == Watcher.WatcherEnums.SlideShowID.DreamSpinningTop || slideShowID == Watcher.WatcherEnums.SlideShowID.DreamRot || slideShowID == Watcher.WatcherEnums.SlideShowID.DreamVoidWeaver || slideShowID == Watcher.WatcherEnums.SlideShowID.DreamTerrace || slideShowID == Watcher.WatcherEnums.SlideShowID.EndingVoidBath;
+            if (gotoSleepScreen)
+                self.processAfterSlideShow = ProcessManager.ProcessID.SleepScreen;
+
         }
     }
 }
