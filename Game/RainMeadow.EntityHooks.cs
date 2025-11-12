@@ -602,9 +602,10 @@ namespace RainMeadow
                                 }
                                 else // mine leave the old online world elegantly
                                 {
-                                    RainMeadow.Debug("removing my entity from online " + oe);
+                                    //deletes host's avatar
+                                    /*RainMeadow.Debug("removing my entity from online " + oe);
                                     oe.ExitResource(roomSession3);
-                                    oe.ExitResource(roomSession3.worldSession);
+                                    oe.ExitResource(roomSession3.worldSession);*/
                                 }
                             }
                         }
@@ -643,11 +644,6 @@ namespace RainMeadow
                         if (absplayer.realizedCreature is Player player)
                         {
                             RainMeadow.Debug($"fixing player");
-                            // do not get stuck on bottom left
-                            if (self.warpData?.destPos != null)
-                            {
-                                player.abstractCreature.pos.Tile = new RWCustom.IntVector2((int)(self.warpData.destPos.Value.x / 20f), (int)(self.warpData.destPos.Value.y / 20f));
-                            }
                             player.slugOnBack?.DropSlug();
                             if (player.objectInStomach is AbstractPhysicalObject apo)
                             { // apo's in stomach (isn't realized but has to be "carried" over)
