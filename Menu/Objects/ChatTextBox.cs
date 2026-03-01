@@ -285,11 +285,11 @@ namespace RainMeadow
             {
                 menu.allowSelectMove = false;
             }
-            maxVisibleLength = VisibleTextLimit;
         }
 
         public void UpdateLabel(string text)
         {
+            int maxVisibleLength = VisibleTextLimit;
             int firstLetterViewed = cursorPos > maxVisibleLength ? cursorPos - maxVisibleLength : 0,
                 lastLetterViewed = Mathf.Max(0, cursorPos > maxVisibleLength ? maxVisibleLength : Mathf.Min(maxVisibleLength, text.Length));
 
@@ -714,7 +714,7 @@ namespace RainMeadow
         private void SetCursorSprite(bool inMiddle)
         {
             int lowestCursorPos = selectionPos != -1 ? Mathf.Min(cursorPos, selectionPos) : cursorPos;
-            float width = LabelTest.GetWidth(menuLabel.label.text.Substring(0, lowestCursorPos > maxVisibleLength ? menuLabel.label.text.Length : lowestCursorPos), false);
+            float width = LabelTest.GetWidth(menuLabel.label.text.Substring(0, lowestCursorPos > VisibleTextLimit ? menuLabel.label.text.Length : lowestCursorPos), false);
             if (inMiddle)
             {
                 _cursor.element = Futile.atlasManager.GetElementWithName("pixel");
