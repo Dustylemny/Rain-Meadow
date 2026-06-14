@@ -166,7 +166,6 @@ namespace RainMeadow
                 }
             };
         }
-
         // Always show "Sync Save" to clients
         public void SlugcatSelectMenu_Update(ILContext il)
         {
@@ -217,27 +216,30 @@ namespace RainMeadow
         {
             if (isStoryMode(out var storyGameMode))
             {
-                if (OnlineManager.lobby.isOwner && OnlineManager.lobby.clientSettings.Values.Where(cs => cs.inGame) is var inGameClients && inGameClients.Any())
+                var isEcho = self.room.game.GetStorySession.spinningTopWarpsLeadingToRippleScreen.Contains(self.MyIdentifyingString());
+                if (isEcho)
+                {
+                    storyGameMode.readyForTransition = StoryGameMode.ReadyForTransition.MeetRequirement;
+                }
+                else if (OnlineManager.lobby.isOwner && OnlineManager.lobby.clientSettings.Values.Where(cs => cs.inGame) is var inGameClients && inGameClients.Any())
                 {
                     var inGameClientsData = inGameClients.Select(cs => cs.GetData<StoryClientSettingsData>());
                     var inGameAvatarOPOs = inGameClients.SelectMany(cs => cs.avatars.Select(id => id.FindEntity(true))).OfType<OnlinePhysicalObject>();
                     var rooms = inGameAvatarOPOs.Select(opo => opo.apo.pos.room);
                     var isTransportable = self.transportable; //prevent blocking joining after exiting an echowarp
-                    var isEcho = self.room.game.GetStorySession.spinningTopWarpsLeadingToRippleScreen.Contains(self.MyIdentifyingString());
-                    if (!isEcho)
-                    {
-                        if (rooms.Distinct().Count() == 1 && inGameAvatarOPOs.First().apo.Room == self.room.abstractRoom && isTransportable)
-                        { // make sure they're at the same room
-                            RainWorld.roomIndexToName.TryGetValue(rooms.First(), out var gateRoom);
-                            RainMeadow.Debug($"ready for warp {gateRoom}!");
-                            storyGameMode.readyForTransition = StoryGameMode.ReadyForTransition.MeetRequirement;
-                        }
-                        else
-                        {
-                            storyGameMode.readyForTransition = StoryGameMode.ReadyForTransition.Closed;
-                        }
+                    if (rooms.Distinct().Count() == 1 && inGameAvatarOPOs.First().apo.Room == self.room.abstractRoom && isTransportable)
+                    { // make sure they're at the same room
+                        RainWorld.roomIndexToName.TryGetValue(rooms.First(), out var gateRoom);
+                        RainMeadow.Debug($"ready for warp {gateRoom}! for {self.Data.destRoom}");
+                        storyGameMode.readyForTransition = StoryGameMode.ReadyForTransition.MeetRequirement;
                     }
+                    else
+                    {
+                        storyGameMode.readyForTransition = StoryGameMode.ReadyForTransition.Closed;
+                    }
+
                 }
+
                 bool readyForWarp = storyGameMode.readyForTransition != StoryGameMode.ReadyForTransition.Closed;
                 if (!readyForWarp) //||!OnlineManager.lobby.isOwner // 04-24-2026: Removed this so that clients correctly get added to rooms
                 {
@@ -290,18 +292,8 @@ namespace RainMeadow
             if (OnlineManager.lobby != null && !self.Ascended)
             {
                 Debug("getting warp point from echo");
-                Watcher.SpinningTopData specialData = self.SpecialData;
-                if (specialData == null)
-                {
-                    Debug("Special data is null!");
-                    return;
-                }
-                int spinningTopID = specialData.spawnIdentifier;
-                PlacedObject placedObject = new(PlacedObject.Type.WarpPoint, specialData.CreateWarpPointData(self.room))
-                {
-                    pos = self.pos
-                };
-                Watcher.WarpPoint warpPoint = self.room.TrySpawnWarpPoint(placedObject, true);
+                int spinningTopID = self.SpecialData.spawnIdentifier;
+                Watcher.WarpPoint warpPoint = self.spawnedWarp;
                 //this should get spinning top's warp, theres the destRoom check for warp points in rooms
                 //new warppoint shouldnt spawn unless a mod edits orig warppoint's destination room in il, which is evil so we be evil too
                 if (warpPoint == null)
@@ -309,7 +301,6 @@ namespace RainMeadow
                     Debug("Warp point is null!");
                     return;
                 }
-                placedObject.pos = warpPoint.pos;
                 warpPoint.WarpPrecast(); // force cast NOW
                 if (OnlineManager.lobby.isOwner)
                     StoryHelpers.SaveEchoWarp(self.room.game, warpPoint);
@@ -1818,7 +1809,7 @@ namespace RainMeadow
             }
             else
             {
-                if (storyGameMode.myLastWarp is null || self.currentSaveState.warpPointTargetAfterWarpPointSave != storyGameMode.myLastWarp)
+                if (storyGameMode.myLastWarp is not null && self.currentSaveState.warpPointTargetAfterWarpPointSave != storyGameMode.myLastWarp)
                 {
                     self.currentSaveState.warpPointTargetAfterWarpPointSave = storyGameMode.myLastWarp;
                 }

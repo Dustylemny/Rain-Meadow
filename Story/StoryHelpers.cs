@@ -12,31 +12,35 @@ namespace RainMeadow
 {
     public static class StoryHelpers
     {
-        public static void SaveEchoWarp(RainWorldGame game, WarpPoint warpPoint, bool saveRoomWarp = false, bool saveString = false)
+        public static void SaveEchoWarp(RainWorldGame game, WarpPoint warpPoint, bool saveRoomWarp = false, bool saveString = false, bool initiateWarp = false)
         {
             var warpData = warpPoint.overrideData ?? warpPoint.Data;
             if (saveRoomWarp)
             {
-                RainMeadow.Debug("Trying to spawn echo warp point in room");
+                RainMeadow.Info("Trying to spawn echo warp point in room");
                 if (warpPoint.room != null)
                     warpPoint.room.TrySpawnWarpPoint(warpPoint.placedObject);
-                else RainMeadow.Debug("Failed due to null room");
+                else RainMeadow.Info("Failed due to null room");
             }
-            if (saveString) game.GetStorySession.spinningTopWarpsLeadingToRippleScreen.Add(warpData.ToString());
+            if (saveString) game.GetStorySession.spinningTopWarpsLeadingToRippleScreen.Add(warpPoint.MyIdentifyingString());
             game.GetStorySession.saveState.warpPointTargetAfterWarpPointSave = warpData;
             if (RainMeadow.isStoryMode(out var storyGameMode)) storyGameMode.myLastWarp = warpData;
-            game.Win(false, true);
+            if (initiateWarp)
+                ForceLoadDesiredWarp(game.overWorld, warpPoint, warpData, true, false);
         }
-        public static void ForceLoadDesiredWarp(OverWorld overWorld, WarpPoint warpPoint, WarpPoint.WarpPointData warpData, bool useNormalWarpLoader)
+        public static void ForceLoadDesiredWarp(OverWorld overWorld, WarpPoint warpPoint, WarpPoint.WarpPointData warpData, bool useNormalWarpLoader, bool changeCamera = true)
         {
             if (RainMeadow.isStoryMode(out var story)) story.myLastWarp = warpData;
             overWorld.InitiateSpecialWarp_WarpPoint(warpPoint, warpData, useNormalWarpLoader);
 
             // emulate as if we did actually warp
-            string destRoom = warpData.destRoom;
-            var destCam = warpData.destCam;
-            overWorld.game.cameras[0].WarpMoveCameraPrecast(destRoom, destCam);
-            RainMeadow.Debug($"switch camera to {destRoom}");
+            if (changeCamera)
+            {
+                string destRoom = warpData.destRoom;
+                var destCam = warpData.destCam;
+                overWorld.game.cameras[0].WarpMoveCameraPrecast(destRoom, destCam);
+                RainMeadow.Debug($"switch camera to {destRoom}");
+            }
 
             warpPoint.activated = false;
             overWorld.readyForWarp = !useNormalWarpLoader;
@@ -46,7 +50,7 @@ namespace RainMeadow
         public static Watcher.WarpPoint? PerformWarpHelper(string? sourceRoomName, string warpData, bool useNormalWarpLoader, bool hackFixRoom)
         {
             if (!(RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game && game.manager.upcomingProcess is null)) return null;
-            RainMeadow.Debug($"Warp point? in {sourceRoomName}; data={warpData}, Loader={useNormalWarpLoader}");
+            RainMeadow.Info($"Warp point? in {sourceRoomName}; data={warpData}, Loader={useNormalWarpLoader}");
             // generate "local" warp point
             Watcher.WarpPoint.WarpPointData newWarpData = new(null);
             newWarpData.FromString(warpData);

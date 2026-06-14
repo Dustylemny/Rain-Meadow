@@ -210,12 +210,12 @@ namespace RainMeadow
             Watcher.WarpPoint? warpPoint = StoryHelpers.PerformWarpHelper(sourceRoomName, warpData, false, true);
             if (warpPoint != null && RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game)
             {
-                RainMeadow.Debug($"warp of kind echo executed; going to win screen warp={warpData}");
+                RainMeadow.Info($"warp of kind echo executed; going to win screen warp={warpData}");
                 warpPoint.placedObject.pos = pos;
                 var storySession = game.GetStorySession;
                 if (!storySession.saveState.deathPersistentSaveData.spinningTopEncounters.Contains(spinningTopID))
                     storySession.saveState.deathPersistentSaveData.spinningTopEncounters.Add(spinningTopID);
-                StoryHelpers.SaveEchoWarp(game, warpPoint, true, true); //save string incase
+                StoryHelpers.SaveEchoWarp(game, warpPoint, true, true, true); //save string incase
             }
             else
             {

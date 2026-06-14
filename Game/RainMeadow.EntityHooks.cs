@@ -563,8 +563,8 @@ namespace RainMeadow
                 oldWorldSession.Deactivate();
                 oldWorldSession.NotNeeded(); // done? let go
             }
-
-            self.game.manager.rainWorld.StartCoroutine(Overworld_Loaded_WaitLoop(orig, self, warpUsed, oldWorldSession, newWorldSession, newWorld));            
+         
+            self.game.manager.rainWorld.StartCoroutine(Overworld_Loaded_WaitLoop(orig, self, warpUsed, oldWorldSession, newWorldSession, newWorld));
             return;
         }
         // world transition at gatesactiveEntities
