@@ -40,6 +40,13 @@ namespace RainMeadow
                 var destCam = warpData.destCam;
                 overWorld.game.cameras[0].WarpMoveCameraPrecast(destRoom, destCam);
                 RainMeadow.Debug($"switch camera to {destRoom}");
+
+                if (overWorld.game.cameras[0].warpPointTimer == null)
+                {
+                    overWorld.game.cameras[0].warpPointTimer = new Watcher.WarpPoint.WarpPointTimer(warpPoint.activateAnimationTime * 2f, warpPoint);
+                    overWorld.game.cameras[0].warpPointTimer.MoveToSecondHalf();
+                    overWorld.game.cameras[0].BlankWarpPointHoldFrame();
+                }
             }
 
             warpPoint.activated = false;
@@ -77,6 +84,7 @@ namespace RainMeadow
             {*/
             if (sourceRoomName is not null)
             {
+                RainMeadow.Info($"Trying to find room {sourceRoomName} to set false warp point in");
                 var abstractRoom2 = game.overWorld.activeWorld.GetAbstractRoom(sourceRoomName);
                 if (abstractRoom2.realizedRoom == null)
                 {
@@ -88,16 +96,11 @@ namespace RainMeadow
                 }
                 // do nat throw everyone into the same room?
                 warpPoint.room = abstractRoom2.realizedRoom;
+                RainMeadow.Info($"Room {(warpPoint.room == null? "fail" : "success")}");
             }
             //}
             if (!OnlineManager.lobby.isOwner)
                 ForceLoadDesiredWarp(game.overWorld, warpPoint, warpPoint.overrideData ?? warpPoint.Data, useNormalWarpLoader);
-            if (game.cameras[0].warpPointTimer == null)
-            {
-                game.cameras[0].warpPointTimer = new Watcher.WarpPoint.WarpPointTimer(warpPoint.activateAnimationTime * 2f, warpPoint);
-                game.cameras[0].warpPointTimer.MoveToSecondHalf();
-                game.cameras[0].BlankWarpPointHoldFrame();
-            }
             return warpPoint;
         }
     }

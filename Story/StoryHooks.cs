@@ -241,7 +241,7 @@ namespace RainMeadow
                 }
 
                 bool readyForWarp = storyGameMode.readyForTransition != StoryGameMode.ReadyForTransition.Closed;
-                if (!readyForWarp) //||!OnlineManager.lobby.isOwner // 04-24-2026: Removed this so that clients correctly get added to rooms
+                if (!OnlineManager.lobby.isOwner || !readyForWarp) //||!OnlineManager.lobby.isOwner // 04-24-2026: Removed this so that clients correctly get added to rooms
                 {
                     self.triggerTime = 0;
                     self.lastTriggerTime = 0;
