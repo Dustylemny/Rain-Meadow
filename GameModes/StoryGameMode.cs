@@ -29,6 +29,7 @@ namespace RainMeadow
         public SlugcatStats.Name preferredSlug;
         public bool requireCampaignSlugcat;
         public string? saveStateString;
+        public Vector2? forcedRippleLevel = null;
         public bool lastWarpIsEcho = false;
 
         // TODO: split these out for other gamemodes to reuse (see Story/StoryMenuHelpers for methods)
@@ -70,6 +71,7 @@ namespace RainMeadow
             pups = new();
             storyClientData?.Sanitize();
             rippleLevel = 0.0f;
+            forcedRippleLevel = null;
             this.ResetOverWorld();
 
         }

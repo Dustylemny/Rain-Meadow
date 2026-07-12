@@ -130,6 +130,7 @@ namespace RainMeadow
             IL.Watcher.Barnacle.LoseShell += Watcher_Barnacle_LoseShell;
             On.Watcher.SpinningTop.SpawnWarpPoint += SpinningTop_SpawnWarpPoint;
             On.Watcher.SpinningTop.RaiseRippleLevel += SpinningTop_RaiseRippleLevel;
+            On.Watcher.SpinningTop.NextMinMaxRippleLevel += SpinningTop_NextMinMaxRippleLevel;
             IL.Watcher.SpinningTop.SpawnBackupWarpPoint += SpinningTop_SpawnBackupWarpPoint;
             IL.SLOracleSwarmer.Update += SLOracleSwarmer_Update;
             //On.Watcher.SpinningTop.Update += SpinningTop_Update;
@@ -241,7 +242,7 @@ namespace RainMeadow
                 }
 
                 bool readyForWarp = storyGameMode.readyForTransition != StoryGameMode.ReadyForTransition.Closed;
-                if (!OnlineManager.lobby.isOwner || !readyForWarp) //||!OnlineManager.lobby.isOwner // 04-24-2026: Removed this so that clients correctly get added to rooms
+                if (!isEcho && (!OnlineManager.lobby.isOwner || !readyForWarp)) //||!OnlineManager.lobby.isOwner // 04-24-2026: Removed this so that clients correctly get added to rooms
                 {
                     self.triggerTime = 0;
                     self.lastTriggerTime = 0;
@@ -426,29 +427,34 @@ namespace RainMeadow
                     story.rippleLevel = room.game.GetStorySession.saveState.deathPersistentSaveData.rippleLevel;
                 }
 
-                bool hostIsDead = OnlineManager.lobby.playerAvatars.Select(kv => kv.Value)
+               /* bool hostIsDead = OnlineManager.lobby.playerAvatars.Select(kv => kv.Value)
                     .Any(playerAvatar =>
                         playerAvatar.type != (byte)OnlineEntity.EntityId.IdType.none && // is in game
                         playerAvatar.FindEntity(true) is OnlinePhysicalObject opo &&
                         opo.owner == OnlineManager.lobby.owner &&
                         opo.apo is AbstractCreature ac &&
-                        (ac.realizedObject is null || ac.realizedCreature.dead));
+                        (ac.realizedObject is null || ac.realizedCreature.dead));*/
 
 
-                if (!OnlineManager.lobby.isOwner && hostIsDead && story.rippleLevel < vector.y)
+                if (!OnlineManager.lobby.isOwner && story.rippleLevel < vector.y)
                 {
                     OnlineManager.lobby.owner.InvokeOnceRPC(StoryRPCs.RaiseRippleLevel, vector); // host needs notification that we get new rippleLevel
                 }
                 foreach (OnlinePlayer player in OnlineManager.players)
                 {
-                    if (!player.isMe)
+                    if (!player.isMe && OnlineManager.lobby.owner != player)
                     {
                         player.InvokeOnceRPC(StoryRPCs.PlayRaiseRippleLevelAnimation, vector);
                     }
                 }
             }
         }
-
+        public Vector2 SpinningTop_NextMinMaxRippleLevel(On.Watcher.SpinningTop.orig_NextMinMaxRippleLevel orig, Room room)
+        {
+            if (isStoryMode(out var story) && story.forcedRippleLevel is not null)
+                return story.forcedRippleLevel.Value;
+            return orig(room);
+        }
         public void SpinningTop_SpawnBackupWarpPoint(ILContext il)
         {
             try

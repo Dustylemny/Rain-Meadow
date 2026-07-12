@@ -632,7 +632,7 @@ namespace RainMeadow
                     //somehow WorldLoaded() gets called more than once in a row and leads to this exception when spawning from echo warp. No big issue tho..
                     Watcher.WarpPoint warpPoint = self.specialWarpCallback as Watcher.WarpPoint ?? throw new InvalidProgrammerException("watcher warp point doesnt exist at time of loading");
 
-                    Watcher.WarpPoint.WarpPointData warpData = warpPoint.overrideData ?? warpPoint.Data;
+                    Watcher.WarpPoint.WarpPointData warpData = self.specialWarpPointGoal;
 
                     Room room = warpPoint.room; //may be null in the case a client activates an echo warp
                     isFirstWarpWorld = room == null; //do not update gate status afterwards :)
@@ -675,9 +675,9 @@ namespace RainMeadow
                         {
                             RainMeadow.Debug($"fixing player");
                             // do not get stuck on bottom left
-                            if (self.warpData?.destPos != null)
+                            if (self.specialWarpPointGoal?.destPos != null)
                             {
-                                player.abstractCreature.pos.Tile = new RWCustom.IntVector2((int)(self.warpData.destPos.Value.x / 20f), (int)(self.warpData.destPos.Value.y / 20f));
+                                player.abstractCreature.pos.Tile = new RWCustom.IntVector2((int)(self.specialWarpPointGoal.destPos.Value.x / 20f), (int)(self.specialWarpPointGoal.destPos.Value.y / 20f));
                             }
                             player.slugOnBack?.DropSlug();
                             if (player.objectInStomach is AbstractPhysicalObject apo)

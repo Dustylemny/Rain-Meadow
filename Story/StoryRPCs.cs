@@ -169,27 +169,30 @@ namespace RainMeadow
         [RPCMethod]
         public static void RaiseRippleLevel(UnityEngine.Vector2 vector)
         {
-
-            if (RainMeadow.isStoryMode(out var story))
+            if (!(RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game && game.session is StoryGameSession storyGameSession && game.manager.upcomingProcess is null)) return;
+            if (!RainMeadow.isStoryMode(out var storyGameMode)) return;
+            if (storyGameMode.forcedRippleLevel != null) //this is assuming we raise ripple level once before sleeping. Not the best but.. yeah
             {
-                if (story.rippleLevel < vector.y)
-                {
-                    RainMeadow.Debug($"Raising Ripple Level from: {story.rippleLevel} to {vector.y}");
-                    if (!(RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game && game.session is StoryGameSession storyGameSession && game.manager.upcomingProcess is null)) return;
-                    story.rippleLevel = vector.y;
-                    storyGameSession.saveState.deathPersistentSaveData.minimumRippleLevel = vector.x;
-                    storyGameSession.saveState.deathPersistentSaveData.maximumRippleLevel = vector.y;
-                    storyGameSession.saveState.deathPersistentSaveData.rippleLevel = vector.y;
-                }
+                RainMeadow.Debug($"Skipping");
+                return;
             }
+            if (storyGameSession.saveState.deathPersistentSaveData.maximumRippleLevel < vector.y || storyGameSession.saveState.deathPersistentSaveData.minimumRippleLevel < vector.x)
+            {
+                RainMeadow.Debug($"Raising Ripple Level from: {storyGameSession.saveState.deathPersistentSaveData.maximumRippleLevel} to {vector.y}");
+                storyGameMode.forcedRippleLevel = vector;
+                storyGameSession.saveState.deathPersistentSaveData.minimumRippleLevel = vector.x;
+                storyGameSession.saveState.deathPersistentSaveData.maximumRippleLevel = vector.y;
+                storyGameSession.saveState.deathPersistentSaveData.rippleLevel = vector.y;
+                game.cameras[0].hud.karmaMeter.UpdateGraphic();
+                game.cameras[0].hud.karmaMeter.forceVisibleCounter = 120;
+            }
+
         }
 
         [RPCMethod]
         public static void PlayRaiseRippleLevelAnimation(UnityEngine.Vector2 vector)
         {
             if (!(RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game && game.session is StoryGameSession storyGameSession && game.manager.upcomingProcess is null)) return;
-            storyGameSession.saveState.deathPersistentSaveData.minimumRippleLevel = vector.x;
-            storyGameSession.saveState.deathPersistentSaveData.maximumRippleLevel = vector.y;
             storyGameSession.saveState.deathPersistentSaveData.rippleLevel = vector.y;
             game.cameras[0].hud.karmaMeter.UpdateGraphic();
             game.cameras[0].hud.karmaMeter.forceVisibleCounter = 120; //it's max for a reason(?)
