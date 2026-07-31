@@ -1,11 +1,13 @@
-﻿using System;
+﻿using Menu;
+using Menu.Remix.MixedUI;
+using RainMeadow.UI.Scrolling;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Menu;
-using Menu.Remix.MixedUI;
 using UnityEngine;
+using static RainMeadow.UI.Scrolling.ScrollAddOns;
 
 namespace RainMeadow.UI.Components
 {
@@ -19,10 +21,15 @@ namespace RainMeadow.UI.Components
             //chatTypingBox = new(menu, this, "", new(10, 10), new(this.size.x - 30, 30));
             chatTypingBox.OnTextSubmit += () =>
             {
-                if (messageScroller != null) messageScroller.MoveAtBottom();
+                if (scrollContainer != null) scrollContainer.MoveTo(ScrollSystem.Anchor.Bottom);
+            };
+            ElementListSystem elementList = new(new(chatTypingBox.pos.x - 5, 20), new(0, 3), 0)
+            {
+                ScrollAnchor = ScrollSystem.Anchor.Bottom,
             };
             float posYOffset = chatTypingBox.size.y + 10;
-            messageScroller = new(menu, this, new(chatTypingBox.pos.x, chatTypingBox.pos.y + posYOffset), new(chatTypingBox.size.x, this.size.y - chatTypingBox.size.y - chatTypingBox.pos.y - 10), true, new(-5, -posYOffset), posYOffset - 25)
+            scrollContainer = new(menu, this, new(chatTypingBox.pos.x, chatTypingBox.pos.y + posYOffset), new Vector2(chatTypingBox.size.x, this.size.y - chatTypingBox.size.y - chatTypingBox.pos.y - 10), elementList);
+            /*messageScroller = new(menu, this, new(chatTypingBox.pos.x, chatTypingBox.pos.y + posYOffset), new(chatTypingBox.size.x, this.size.y - chatTypingBox.size.y - chatTypingBox.pos.y - 10), true, new(-5, -posYOffset), posYOffset - 25)
             {
                 sliderDefaultIsDown = true,
                 buttonHeight = 20,
@@ -30,9 +37,9 @@ namespace RainMeadow.UI.Components
                 textAnchor = RainMeadow.rainMeadowOptions.ChatTextDownscroll.Value 
                     ? ButtonScroller.TextAnchor.Bottom 
                     : ButtonScroller.TextAnchor.Top
-            };
-            menu.MutualHorizontalButtonBind(chatTypingBox, messageScroller.scrollSlider);
-            subObjects.AddRange([roundedRect, chatTypingBox, messageScroller]);
+            };*/
+            /*menu.MutualHorizontalButtonBind(chatTypingBox, messageScroller.scrollSlider);*/
+            subObjects.AddRange([roundedRect, chatTypingBox, scrollContainer]);//messageScroller]);
 
             for (int i = Mathf.Max(0, ChatLogManager.chatLog.Count - maxVisibleMessages - 1); i < ChatLogManager.chatLog.Count; i++)
             {
@@ -43,7 +50,7 @@ namespace RainMeadow.UI.Components
         {
             if (systemMessageType is not null)
             {
-                AlignedMenuLabel systemMessageLabel = new(menu, messageScroller, stg, pos, size, false)
+                AlignedMenuLabel systemMessageLabel = new(menu, scrollContainer, stg, pos, size, false)
                 { labelPosAlignment = FLabelAlignment.Left, verticalLabelPosAlignment = OpLabel.LabelVAlignment.Bottom };
                 systemMessageLabel.label.alignment = FLabelAlignment.Left;
                 systemMessageLabel.label.color = ChatLogManager.GetColorOfSystemMessage(systemMessageType);
@@ -51,7 +58,7 @@ namespace RainMeadow.UI.Components
             }
             if (withUser)
             {
-                UsernameMenuLabel userLabel = new(menu, messageScroller, user!, pos, size, false)
+                UsernameMenuLabel userLabel = new(menu, scrollContainer, user!, pos, size, false)
                 { labelPosAlignment = FLabelAlignment.Left, verticalLabelPosAlignment = OpLabel.LabelVAlignment.Bottom };
                 userLabel.label.alignment = FLabelAlignment.Left;
                 userLabel.label.color = ChatLogManager.GetDisplayPlayerColor(user!, MenuColorEffect.rgbMediumGrey);
@@ -63,30 +70,37 @@ namespace RainMeadow.UI.Components
                 userLabel.subObjects.Add(messageWithUserLabel);
                 return userLabel;
             }
-            AlignedMenuLabel messageLabel = new(menu, messageScroller, stg, pos, size, false)
+            AlignedMenuLabel messageLabel = new(menu, scrollContainer, stg, pos, size, false)
             { labelPosAlignment = FLabelAlignment.Left, verticalLabelPosAlignment = OpLabel.LabelVAlignment.Bottom };
             messageLabel.label.alignment = FLabelAlignment.Left;
             return messageLabel;
         }
         public void AddNewMessageToScroller(string user, string message)
         {
-            bool setNewScrollPosToLatest = messageScroller.IsAtBottom();
-            messageScroller.AddScrollObjects(GetMessageLabels(user, message));
-            if (setNewScrollPosToLatest) messageScroller.MoveAtBottom();
+            bool setNewScrollPosToLatest = scrollContainer.IsAt(ScrollSystem.Anchor.Bottom);//messageScroller.IsAtBottom();
+            scrollContainer.AddScrollElements(GetMessageLabels(user, message));
+            if (setNewScrollPosToLatest)
+                scrollContainer.MoveTo(ScrollSystem.Anchor.Bottom);
+            //messageScroller.AddScrollObjects(GetMessageLabels(user, message));
+            //if (setNewScrollPosToLatest) messageScroller.MoveAtBottom();
         }
         public AlignedMenuLabel[] GetMessageLabels(string user, string message)
         {
             List<AlignedMenuLabel> messageLabels = [];
             ChatLogManager.SystemMessageType? systemMessageType = ChatLogManager.SysMesSignatureToType(user);
             bool isSystemMessage = systemMessageType is not null;
-            float desiredXWidth = messageScroller.size.x - 5;
-            Vector2 desiredSize = new(desiredXWidth, messageScroller.buttonHeight);
+            float desiredXWidth = scrollContainer.size.x - 5;
+            Vector2 desiredSize = scrollContainer.scrollSystem.GetAdjustedElementSize(new(desiredXWidth, 0));
 
             bool host = OnlineManager.lobby?.owner.id.GetPersonaName() == user;
             List<string> splitMessages = [.. MenuHelpers.SmartSplitIntoFixedStrings($"{message}", desiredXWidth - (isSystemMessage ? 0 : LabelTest.GetWidth($"{user}: ", false) + (host ? 14f : 0)), 1, out string remainingMessage)];
             splitMessages.AddRange(MenuHelpers.SmartSplitIntoStrings(remainingMessage, desiredXWidth));
             for (int i = 0; i < splitMessages.Count; i++)
-                messageLabels.Add(GetMessageLabel(user, splitMessages[i], systemMessageType, i == 0, new(5, messageScroller.GetIdealPosWithScrollForButton(i + messageScroller.buttons.Count).y), desiredSize));
+            {
+                int index = i + scrollContainer.elements.Count;
+                messageLabels.Add(GetMessageLabel(user, splitMessages[i], systemMessageType, i == 0, new(5, scrollContainer.scrollSystem.GetRelativePositionOfScrollObject(scrollContainer.elements.Count, index, new(0, 0)).y), desiredSize));
+            }
+                //messageLabels.Add(GetMessageLabel(user, splitMessages[i], systemMessageType, i == 0, new(5, messageScroller.GetIdealPosWithScrollForButton(i + messageScroller.buttons.Count).y), desiredSize));
             return [.. messageLabels];
         }
         public void AddMessage(string user, string message)
@@ -113,7 +127,8 @@ namespace RainMeadow.UI.Components
 
         public RoundedRect roundedRect;
         public ChatTextBox chatTypingBox;
-        public ButtonScroller messageScroller;
+        public ScrollContainer scrollContainer;
+        //public ButtonScroller messageScroller;
         private const int maxVisibleMessages = 25;
     }
 }

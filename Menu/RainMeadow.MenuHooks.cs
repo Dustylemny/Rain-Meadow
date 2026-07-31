@@ -4,6 +4,9 @@ using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using RainMeadow.UI;
+using RainMeadow.UI.Components;
+using RainMeadow.UI.Interfaces;
+using RainMeadow.UI.Scrolling;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -214,6 +217,10 @@ namespace RainMeadow
         void On_MenuObject_Ctor(On.Menu.MenuObject.orig_ctor orig, MenuObject self, Menu.Menu menu, MenuObject owner)
         {
             orig(self, menu, owner);
+            if (self is IMenuScrollObject || owner.HasScrollAddOn(out _))
+            {
+                new ScrollAddOns(self);
+            }
             if (self is ButtonScroller.IPartOfButtonScroller && self.myContainer == null)
             {
                 self.myContainer = new();
@@ -222,20 +229,26 @@ namespace RainMeadow
         }
         void On_MenuObject_Update(On.Menu.MenuObject.orig_Update orig, MenuObject self)
         {
+            if (self.HasScrollAddOn(out var addOn))
+                addOn.Update();
             orig(self);
-            if (self is ButtonScroller.IPartOfButtonScroller buttonScroll)
+         
+            /*if (self is ButtonScroller.IPartOfButtonScroller buttonScroll)
                 foreach (ButtonScroller.IPartOfButtonScroller subObj in self.subObjects.OfType<ButtonScroller.IPartOfButtonScroller>())
-                    subObj.Alpha = buttonScroll.Alpha;
+                    subObj.Alpha = buttonScroll.Alpha;*/
 
         }
         void On_MenuObject_GrafUpdate(On.Menu.MenuObject.orig_GrafUpdate orig, MenuObject self, float timestacker)
         {
+            if (self.HasScrollAddOn(out var addOn))
+                addOn.GrafUpdate(timestacker);
             orig(self, timestacker);
-            if (self is ButtonScroller.IPartOfButtonScroller buttonScroll)
-                self.myContainer.alpha = self.owner is not ButtonScroller.IPartOfButtonScroller ? buttonScroll.Alpha : 1;
+            /*if (self is ButtonScroller.IPartOfButtonScroller buttonScroll)
+                self.myContainer.alpha = self.owner is not ButtonScroller.IPartOfButtonScroller ? buttonScroll.Alpha : 1;*/
         }
         bool On_ButtonTemplate_Selectable(Func<ButtonTemplate, bool> orig, ButtonTemplate self)
         {
+            return orig(self) && !(self.HasScrollAddOn(out var addon) && addon.myScrollBox != null && addon.GetActualAlpha() < 1);
             return orig(self) && !(self is ButtonScroller.IPartOfButtonScroller scrollButton && scrollButton.Alpha < 1);
         }
         private FContainer MenuObject_Container(Func<MenuObject, FContainer> orig, MenuObject self)

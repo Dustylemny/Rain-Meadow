@@ -300,15 +300,15 @@ public class ArenaMainLobbyPage : PositionedMenuObject, IDynamicBindHandler
         var tabButtons = tabBtnContainer.activeTabButtons;
         for (int i = 0; i < tabBtnContainer.activeTabButtons.Count; i++)
         {
-            if (i == 0)
+            /*if (i == 0)
                 menu.MutualHorizontalButtonBind(
-                    chatMenuBox.messageScroller.scrollSlider,
+                    chatMenuBox.sc.scrollSlider,
                     tabButtons[i].wrapper
                 );
             else
                 tabBtnContainer
                     .activeTabButtons[i]
-                    .wrapper.TryBind(chatMenuBox.messageScroller.scrollSlider, left: true);
+                    .wrapper.TryBind(chatMenuBox.messageScroller.scrollSlider, left: true);*/
         }
         menu.TrySequentialMutualBind(
             [
@@ -319,10 +319,10 @@ public class ArenaMainLobbyPage : PositionedMenuObject, IDynamicBindHandler
             true,
             loopLastIndex: true
         );
-        tabBtnContainer.bottomArrowButton.TryBind(
+        /*tabBtnContainer.bottomArrowButton.TryBind(
             chatMenuBox.messageScroller.scrollSlider,
             left: true
-        );
+        );*/
     }
 
     public void BindPlaylistTabSelectables()

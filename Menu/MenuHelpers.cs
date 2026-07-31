@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using Menu;
 using Menu.Remix;
 using Menu.Remix.MixedUI;
+using RainMeadow.UI.Components;
 using RainMeadow.UI.Interfaces;
+using RainMeadow.UI.Scrolling;
 using RWCustom;
 using UnityEngine;
 
@@ -14,6 +16,11 @@ namespace RainMeadow
 {
     public static class MenuHelpers
     {
+        public static bool HasScrollAddOn(this MenuObject? obj, out ScrollAddOns? addOn)
+        {
+            addOn = null;
+            return obj != null && ScrollAddOns.addOns.TryGetValue(obj, out addOn);
+        }
         public static void CallEveryDynamicBindHandler(this MenuObject obj)
         {
             MenuObject owner = obj;

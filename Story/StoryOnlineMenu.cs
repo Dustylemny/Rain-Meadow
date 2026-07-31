@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RWCustom;
 using UnityEngine;
+using RainMeadow.UI.Components;
 
 namespace RainMeadow
 {
@@ -679,7 +680,7 @@ namespace RainMeadow
             restartCheckbox.IDString = "CLIENTSAVERESET";
             //pages[0].subObjects.Add(clientWantsToOverwriteSave);
         }
-        public StoryMenuSlugcatButton[] GetSlugcatSelectionButtons(StoryMenuSlugcatSelector slugcatSelector, ButtonScroller buttonScroller)
+        public StoryMenuSlugcatButton[] GetSlugcatSelectionButtons(StoryMenuSlugcatSelector slugcatSelector, ScrollContainer buttonScroller)
         {
             List<StoryMenuSlugcatButton> slugcatButtons = [];
             for (int i = 0; i < SelectableSlugcats.Length; i++)

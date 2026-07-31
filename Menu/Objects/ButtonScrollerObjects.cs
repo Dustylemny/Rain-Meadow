@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Menu;
 using Menu.Remix.MixedUI;
+using RainMeadow.UI.Interfaces;
 using UnityEngine;
 using static RainMeadow.ButtonScroller;
 
@@ -26,7 +27,7 @@ namespace RainMeadow.UI.Components
         }
 
     }
-    public class AlignedMenuLabel(Menu.Menu menu, MenuObject owner, string text, Vector2 pos, Vector2 size, bool bigText, FTextParams txtParams = null) : MenuLabel(menu, owner, text, pos, size, bigText, txtParams), ButtonScroller.IPartOfButtonScroller
+    public class AlignedMenuLabel(Menu.Menu menu, MenuObject owner, string text, Vector2 pos, Vector2 size, bool bigText, FTextParams txtParams = null) : MenuLabel(menu, owner, text, pos, size, bigText, txtParams), ButtonScroller.IPartOfButtonScroller, IMenuScrollObject
     {
         public float Alpha { get; set; } = 1;
         public Vector2 Pos { get => pos; set => pos = value; }

@@ -1,6 +1,10 @@
-﻿using System;
-using Menu;
+﻿using Menu;
+using RainMeadow.UI.Components;
+using RainMeadow.UI.Scrolling;
+using System;
+using System.ComponentModel;
 using UnityEngine;
+using static RainMeadow.UI.Scrolling.ScrollAddOns;
 
 namespace RainMeadow
 {
@@ -17,37 +21,44 @@ namespace RainMeadow
         {
             NumberOfButtonsToShow = amtOfButtonsView;
             buttonSpacing = spacingOfButton;
+            scrollSystem = new(size, new(0, buttonSpacing), NumberOfButtonsToShow - 1, true)
+            {
+                IncludeOtherPartOfSizePosSpacing = true,
+            };
             OnClick += (_) =>
             {
-                OpenCloseList(scroller == null, true, false);
+                OpenCloseList(scrollContainer == null, true, false);
             };
         }
-        public override void RemoveSprites()
+        public override void Update()
         {
-            base.RemoveSprites();
-            this.ClearMenuObject(ref scroller);
-        }
-        public override void GrafUpdate(float timeStacker)
-        {
-            base.GrafUpdate(timeStacker);
-            if (scroller != null)
+            base.Update();
+            if (scrollSystem == null) return;
+            scrollSystem.ElementSize = size;
+            scrollSystem.ElementSpacing = new(0, buttonSpacing);
+            /* if (scroller != null)
             {
                 scroller.buttonHeight = size.y;
                 scroller.buttonSpacing = buttonSpacing;
-            }
+            }*/
         }
         public virtual void RefreshScrollerList()
         {
-            if (scroller != null)
+            if (scrollContainer == null) return;
+            scrollContainer.RemoveAllScrollElements(false);
+            scrollContainer.AddScrollElements(populateList?.Invoke(this, scrollContainer));
+            scrollContainer.ConstrainScroll();
+            /*if (scroller != null)
             {
                 scroller.RemoveAllButtons(false);
                 scroller.AddScrollObjects(populateList?.Invoke(this, scroller));
                 scroller.ConstrainScroll();
-            }
+            }*/
         }
         public void OpenCloseList()
         {
-            OpenCloseList(scroller == null, true, true);
+            OpenCloseList(scrollContainer == null, true, true);
+            //OpenCloseList(scroller == null, true, true);
         }
         public virtual void OpenCloseList(bool open, bool playSound, bool playSelectedIfClose)
         {
@@ -62,7 +73,18 @@ namespace RainMeadow
         }
         public virtual void OpenList(bool playSound)
         {
-            if (scroller == null)
+            if (scrollContainer != null) return;
+            scrollSystem.rowOrColumn = NumberOfButtonsToShow - 1;
+            scrollContainer = new(menu, this, new(0, StartingYPoint), scrollSystem);
+            scrollContainer.AddScrollElements(populateList?.Invoke(this, scrollContainer));
+            scrollContainer.DesiredScrollOffset = scrollSystem.ScrollOffset;
+            subObjects.Add(scrollContainer);
+            if (playSound)
+            {
+                menu.PlaySound(SoundID.MENU_Checkbox_Check);
+            }
+            scrollContainer.Update();
+            /*if (scroller == null)
             {
                 scroller = new(menu, this, new(0, StartingYPoint), NumberOfButtonsToShow - 1, size.x, new(size.y, buttonSpacing));
                 scroller.AddScrollObjects(populateList?.Invoke(this, scroller));
@@ -71,11 +93,19 @@ namespace RainMeadow
                 {
                     menu.PlaySound(SoundID.MENU_Checkbox_Check);
                 }
-            }
+            }*/
         }
         public virtual void CloseList(bool playSound, bool playSelected)
         {
-            if (scroller != null)
+            if (scrollContainer == null) return;
+            if (playSound)
+            {
+                menu.PlaySound(playSelected ? SoundID.MENU_MultipleChoice_Clicked : SoundID.MENU_Checkbox_Uncheck);
+            }
+            this.ClearMenuObject(ref scrollContainer);
+            UpdateUponClosingList();
+
+            /*if (scroller != null)
             {
                 if (playSound)
                 {
@@ -83,7 +113,7 @@ namespace RainMeadow
                 }
                 this.ClearMenuObject(ref scroller);
                 UpdateUponClosingList();
-            }
+            }*/
         }
         public virtual void UpdateUponClosingList()
         {
@@ -92,7 +122,10 @@ namespace RainMeadow
         public bool downwardsList = true;
         public float listDownUpYOffset, buttonSpacing;
         private int amtOfButtonsToShow;
-        public ButtonScroller? scroller;
-        public Func<ButtonSelector,ButtonScroller, ButtonScroller.IPartOfButtonScroller[]>? populateList;
+        public ElementListSystem scrollSystem;
+        public ScrollContainer? scrollContainer;
+        public Func<ButtonSelector, ScrollContainer, MenuObject[]>? populateList;
+        //public ButtonScroller? scroller;
+        //public Func<ButtonSelector,ButtonScroller, ButtonScroller.IPartOfButtonScroller[]>? populateList;
     }
 }
