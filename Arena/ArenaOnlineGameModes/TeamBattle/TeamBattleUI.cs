@@ -1,15 +1,21 @@
 ﻿using Menu;
-using System.Collections.Generic;
-using UnityEngine;
-using RainMeadow.UI.Components;
+using RainMeadow.Arena.Settings;
 using RainMeadow.UI;
+using RainMeadow.UI.Components;
+using RWCustom;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using UnityEngine;
 
 namespace RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle
 {
     public partial class TeamBattleMode : ExternalArenaGameMode
     {
         public TabContainer.Tab? myTab;
+        public Settings<Dictionary<int, Color32>> teamColorSettings;
+        public Settings<Dictionary<int, string>> teamNameSettings;
+        public CategorySettings teamBattleSettings = new("TeamBattle");
         public OnlineTeamBattleSettingsInterface? myTeamBattleSettingInterface;
         public ConditionalWeakTable<ArenaPlayerBox, TeamBattlePlayerBox> playerBoxes = new();
         public int winningTeam = -1, martyrsSpawn, outlawsSpawn, dragonslayersSpawn, chieftainsSpawn, roundSpawnPointCycler;
@@ -50,6 +56,35 @@ namespace RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle
     { 2, RainMeadow.rainMeadowOptions.DragonSlayersTeamColor.Value },
     { 3,  RainMeadow.rainMeadowOptions.ChieftainTeamColor.Value }
     };
+        public TeamBattleMode()
+        {
+            teamColorSettings = new("Team Colors", teamColors.Select(x => new KeyValuePair<int, Color32>(x.Key,x.Value)).ToDictionary());
+            teamNameSettings = new("Team Names", new(teamNames));
+        }
+        public void SaveTeamColor(int index, Color color)
+        {
+            if (index == 0)
+                RainMeadow.rainMeadowOptions.MartyrTeamColor.Value = color;
+            if (index == 1)
+                RainMeadow.rainMeadowOptions.OutlawsTeamColor.Value = color;
+            if (index == 2)
+                RainMeadow.rainMeadowOptions.DragonSlayersTeamColor.Value = color;
+            if (index == 3)
+                RainMeadow.rainMeadowOptions.ChieftainTeamColor.Value = color;
+
+        }
+        public void SaveTeamName(int index, string name)
+        {
+            if (index == 0)
+                RainMeadow.rainMeadowOptions.MartyrTeamName.Value = name;
+            if (index == 1)
+                RainMeadow.rainMeadowOptions.OutlawsTeamName.Value = name;
+            if (index == 2)
+                RainMeadow.rainMeadowOptions.DragonSlayersTeamName.Value = name;
+            if (index == 3)
+                RainMeadow.rainMeadowOptions.ChieftainTeamName.Value = name;
+
+        }
         public void ArenaSettingsInit()
         {
             martyrsSpawn = 0;
@@ -58,10 +93,30 @@ namespace RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle
             chieftainsSpawn = 0;
             roundSpawnPointCycler = 0;
         }
+        public override void RegisterSettings(CategorySettings arenaSettings)
+        {
+            arenaSettings.TryLoadOrAddSetting(ref teamBattleSettings);
+            if (!teamBattleSettings.TryLoadOrAddSetting(ref teamColorSettings))
+            {
+                teamColorSettings.OnStoreCurrentValue += (val, setting) =>
+                {
+                    foreach (var colorPair in val)
+                        SaveTeamColor(colorPair.Key, colorPair.Value);
+                };
+            }
+           if (!teamBattleSettings.TryLoadOrAddSetting(ref teamNameSettings))
+            {
+                teamNameSettings.OnStoreCurrentValue += (val, setting) =>
+                {
+                    foreach (var namePair in val)
+                        SaveTeamName(namePair.Key, namePair.Value);
+                };
+            }
+            teamBattleSettings.TryAddSettings(new ConfigSetting<float>(RainMeadow.rainMeadowOptions.TeamColorLerp));
+        }
         public override void OnUIEnabled(ArenaOnlineLobbyMenu menu)
         {
             base.OnUIEnabled(menu);
-            ArenaSettingsInit();
             //myTab = menu.arenaMainLobbyPage.tabContainer.AddTab(menu.Translate("Team Settings"));
             myTab = new(menu, menu.arenaMainLobbyPage.tabContainer);
             myTab.AddObjects(myTeamBattleSettingInterface = new OnlineTeamBattleSettingsInterface((ArenaOnlineGameMode)OnlineManager.lobby.gameMode, this, myTab.menu, myTab, new(0, 0), menu.arenaMainLobbyPage.tabContainer.size));
@@ -112,6 +167,7 @@ namespace RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle
         public override void OnUIShutDown(ArenaOnlineLobbyMenu menu)
         {
             base.OnUIShutDown(menu);
+            teamBattleSettings.StoreValueSomewhere();
             myTeamBattleSettingInterface?.OnShutdown();
         }
         public override Color GetPortraitColor(ArenaOnlineGameMode arena, OnlinePlayer? player, Color origColor)

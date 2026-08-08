@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Menu;
 using MoreSlugcats;
+using RainMeadow.Arena.Settings;
 using RainMeadow.UI.Components;
 using RWCustom;
 using UnityEngine;
@@ -107,7 +108,6 @@ public class ArenaSlugcatSelectPage : PositionedMenuObject, SelectOneButton.Sele
             SwitchSelectedSlugcat(savedSlugcat);
             ArenaMenu.ChangeScene();
         }
-
     }
 
     public void SwitchSlugcatTabBy(int increasePageBy)

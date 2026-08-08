@@ -1,4 +1,6 @@
-﻿using System;
+﻿using RainMeadow.Arena;
+using RainMeadow.Arena.Settings;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -20,6 +22,8 @@ namespace RainMeadow
         }
         public ArenaOnlineSetup(ProcessManager manager) : base(manager)
         {
+            settingsManager.LoadPreset();
+            settingsManager.TryLoadOrAddSetting(ref arenaOnlineSettings);
         }
         public string GetSessionSaveString()
         {
@@ -57,5 +61,7 @@ namespace RainMeadow
         }
         public bool isSavingNonSessionOnly = false;
         public List<string> sessionSaveIdentifiableStrings = ["CURRGAMETYPE", "GAMETYPE"];
+        public CategorySettings arenaOnlineSettings = new("Online Arena Settings");
+        public SettingsManager settingsManager = new();
     }
 }

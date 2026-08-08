@@ -8,11 +8,11 @@ using System.Linq;
 using Menu.Remix.MixedUI.ValueTypes;
 using System;
 using System.Text;
+using RainMeadow.Arena.Settings;
 
 namespace RainMeadow.UI.Components
 {
-    public class OnlineArenaBaseGameModeTab
-        : RectangularMenuObject
+    public class OnlineArenaBaseGameModeTab : RectangularMenuObject
     {
         public MenuTabWrapper tabWrapper;
 
@@ -35,10 +35,6 @@ namespace RainMeadow.UI.Components
 
         public MenuLabel challengeDenEjectionLabel;
         public OpCheckBox challengeDenEjectionCheckbox;
-        public EventfulScrollButton? prevButton,
-
-
-            nextButton;
         public ArenaOnlineGameMode arena => OnlineManager.lobby.gameMode as ArenaOnlineGameMode;
         public MenuLabel arenaImportExportLabel;
         public MenuLabel arenaSettingsImportExportLabel;
@@ -48,21 +44,16 @@ namespace RainMeadow.UI.Components
         public OpSimpleButton arenaSettingsExportButton;
         public OpSimpleButton arenaSettingsImportButton;
 
-
+        public CategorySettings baseGamemodeSettings = new("Base Gamemode settings");
         public bool AllSettingsDisabled =>
             arena.initiateLobbyCountdown && arena.arenaClientSettings.ready;
         public bool OwnerSettingsDisabled =>
             !(OnlineManager.lobby?.isOwner == true) || AllSettingsDisabled;
 
 
-        public OnlineArenaBaseGameModeTab(
-            Menu.Menu menu,
-            MenuObject owner,
-            Vector2 pos,
-            Vector2 size
-        )
-            : base(menu, owner, pos, size)
+        public OnlineArenaBaseGameModeTab(Menu.Menu menu,MenuObject owner,Vector2 pos,Vector2 size) : base(menu, owner, pos, size)
         {
+            RegisterSetting();
             tabWrapper = new(menu, this);
             float leftMargin = 10f;
             float labelWidth = 100f;
@@ -87,6 +78,8 @@ namespace RainMeadow.UI.Components
             {
                 if (foodScoreTextBox.valueInt < 0) foodScoreTextBox.valueInt = 0;
                 arena.foodScore = foodScoreTextBox.valueInt;
+                baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaFoodScore);
+
             };
 
 
@@ -106,6 +99,7 @@ namespace RainMeadow.UI.Components
             {
                 if (spearHitScoreTextBox.valueInt < 0) spearHitScoreTextBox.valueInt = 0;
                 arena.spearHitScore = spearHitScoreTextBox.valueInt;
+                baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaSpearHitScore);
             };
 
             killScoreLabel = new(menu, this, menu.Translate("Kill Score:"),
@@ -124,6 +118,7 @@ namespace RainMeadow.UI.Components
             {
                 if (killScoreTextBox.valueInt < 0) killScoreTextBox.valueInt = 0;
                 arena.killScore = killScoreTextBox.valueInt;
+                baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaKillScore);
             };
 
             aliveScoreLabel = new(menu, this, menu.Translate("Survival Score:"),
@@ -138,6 +133,7 @@ namespace RainMeadow.UI.Components
             {
                 if (aliveScoreTextBox.valueInt < 0) aliveScoreTextBox.valueInt = 0;
                 arena.aliveScore = aliveScoreTextBox.valueInt;
+                baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaAliveScore);
             };
 
             emptyKillTagScoreLabel = new(menu, this, menu.Translate("Empty Kill Score:"),
@@ -152,6 +148,7 @@ namespace RainMeadow.UI.Components
             {
                 if (emptyKillTagScore.valueInt < 0) emptyKillTagScore.valueInt = 0;
                 arena.emptyKillTagScore = emptyKillTagScore.valueInt;
+                baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaEmptyKillTagScore);
             };
 
             denScoreLabel = new(menu, this, menu.Translate("Unlock Dens:"),
@@ -170,6 +167,7 @@ namespace RainMeadow.UI.Components
                     {
                         if (denScoreTextBox.valueInt < 0) denScoreTextBox.valueInt = 0;
                         arena.denScore = denScoreTextBox.valueInt;
+                        baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaDenScore);
                     };
 
             denEntryRuleLabel = new(menu, this, menu.Translate("Den Entry:"),
@@ -215,6 +213,7 @@ namespace RainMeadow.UI.Components
             {
                 challengeDenEjectionCheckbox.description = challengeDenEjectionCheckbox.GetValueBool() ? menu.Translate("Dens eject and block players after some time") : menu.Translate("Normal den behavior");
                 arena.challengeDenEjection = challengeDenEjectionCheckbox.GetValueBool();
+                baseGamemodeSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ChallengeDenEjection);
             };
             challengeDenEjectionCheckbox.Change();
 
@@ -380,15 +379,39 @@ namespace RainMeadow.UI.Components
 
 
         }
-        public void PopulatePage(int offset)
+        public void RegisterSetting()
         {
-            ClearInterface();
+            arena.myArenaSetup.arenaOnlineSettings.TryLoadOrAddSetting(ref baseGamemodeSettings);
+            var foodScore = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaFoodScore);
+            foodScore.LoadToSetting += (setting) => arena.foodScore;
+            foodScore.LoadFromSetting += (score, setting) => arena.foodScore = score;
 
-            float posXMultipler = size.x / 4;
-            tabWrapper._tab.myContainer.MoveToFront();
+            var hitScore = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaSpearHitScore);
+            hitScore.LoadToSetting += (setting) => arena.spearHitScore;
+            hitScore.LoadFromSetting += (score, setting) => arena.spearHitScore = score;
+
+            var killscore = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaKillScore);
+            killscore.LoadToSetting += (setting) => arena.killScore;
+            killscore.LoadFromSetting += (score, setting) => arena.killScore = score;
+
+            var aliveScore = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaAliveScore);
+            aliveScore.LoadToSetting += (setting) => arena.aliveScore;
+            aliveScore.LoadFromSetting += (score, setting) => arena.aliveScore = score;
+
+            var denScore = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaDenScore);
+            denScore.LoadToSetting += (setting) => arena.denScore;
+            denScore.LoadFromSetting += (score, setting) => arena.denScore = score;
+
+            var emptyKillScore = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaEmptyKillTagScore);
+            emptyKillScore.LoadToSetting += (setting) => arena.emptyKillTagScore;
+            emptyKillScore.LoadFromSetting += (score, setting) => arena.emptyKillTagScore = score;
+
+            var denEjection = new ConfigSetting<bool>(RainMeadow.rainMeadowOptions.ChallengeDenEjection);
+            denEjection.LoadToSetting += (setting) => arena.challengeDenEjection;
+            denEjection.LoadFromSetting += (ejection, setting) => arena.challengeDenEjection = ejection;
+
+            baseGamemodeSettings.TryAddSettings(foodScore, hitScore, killscore, aliveScore, denScore, emptyKillScore, denEjection);
         }
-
-        public void ClearInterface() { }
 
         public void UnloadAnyConfig(params UIelement[]? elements)
         {
@@ -407,25 +430,7 @@ namespace RainMeadow.UI.Components
 
         public void OnShutdown()
         {
-            if (!(OnlineManager.lobby?.isOwner == true))
-                return;
-            RainMeadow.rainMeadowOptions.ArenaFoodScore.Value = arena.foodScore;
-            RainMeadow.rainMeadowOptions.ArenaSpearHitScore.Value = arena.spearHitScore;
-            RainMeadow.rainMeadowOptions.ArenaKillScore.Value = arena.killScore;
-            RainMeadow.rainMeadowOptions.ArenaAliveScore.Value = arena.aliveScore;
-            RainMeadow.rainMeadowOptions.ArenaDenType.Value = arena.denEntryRule;
-            RainMeadow.rainMeadowOptions.ArenaDenScore.Value = arena.denScore;
-            RainMeadow.rainMeadowOptions.ArenaEmptyKillTagScore.Value = arena.emptyKillTagScore;
-            RainMeadow.rainMeadowOptions.ChallengeDenEjection.Value = arena.challengeDenEjection;
-
             RainMeadow.rainMeadowOptions.config.Save();
-
-        }
-
-        public void DeletePageButtons()
-        {
-            this.ClearMenuObject(ref prevButton);
-            this.ClearMenuObject(ref nextButton);
         }
 
         public override void RemoveSprites()

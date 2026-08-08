@@ -7,14 +7,13 @@ using Menu.Remix;
 using Menu.Remix.MixedUI;
 using Menu.Remix.MixedUI.ValueTypes;
 using RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle;
+using RainMeadow.Arena.Settings;
 using RainMeadow.UI.Components.Patched;
 using UnityEngine;
 
 namespace RainMeadow.UI.Components
 {
-    public class OnlineTeamBattleSettingsInterface
-        : RectangularMenuObject,
-            SelectOneButton.SelectOneButtonOwner
+    public class OnlineTeamBattleSettingsInterface : RectangularMenuObject, SelectOneButton.SelectOneButtonOwner
     {
         public FSprite divider;
         public MenuTabWrapper tabWrapper;
@@ -95,6 +94,7 @@ namespace RainMeadow.UI.Components
             teamLerpTextBox.OnValueUpdate += (config, value, oldValue) =>
             {
                 teamBattleMode.lerp = Mathf.Clamp01(teamLerpTextBox.valueFloat);
+                teamBattleMode.teamBattleSettings.TrySetSetting(RainMeadow.rainMeadowOptions.TeamColorLerp, teamBattleMode.lerp);
             };
 
             friendlyFireCheckbox = new(
@@ -129,7 +129,6 @@ namespace RainMeadow.UI.Components
             );
             this.SafeAddSubobjects(tabWrapper, teamColorLerpLabel, friendlyFireLabel);
         }
-
         public void PopulatePage(int offset)
         {
             ClearInterface();
@@ -233,7 +232,10 @@ namespace RainMeadow.UI.Components
                 RainMeadow.Error($"Key,{value} is not stored in team colors");
                 return;
             }
-            teamBattleMode.teamColors[value] = Extensions.SafeColorRange(newColor);
+            var col = Extensions.SafeColorRange(newColor);
+            teamBattleMode.teamColors[value] = col;
+            if (teamBattleMode.teamColorSettings.CanUpdateOrLoadValue)
+                teamBattleMode.teamColorSettings.value[value] = col;
         }
 
         public void NameTextBox_OnValueUpdated(int value, string newName)
@@ -244,36 +246,12 @@ namespace RainMeadow.UI.Components
                 return;
             }
             teamBattleMode.teamNames[value] = newName;
+            if (teamBattleMode.teamNameSettings.CanUpdateOrLoadValue) 
+                teamBattleMode.teamNameSettings.value[value] = newName;
         }
 
         public void OnShutdown()
         {
-            if (!(OnlineManager.lobby?.isOwner == true))
-                return;
-
-            RainMeadow.rainMeadowOptions.TeamColorLerp.Value = teamBattleMode.lerp;
-            if (teamBattleMode.teamNames.ContainsKey(0))
-                RainMeadow.rainMeadowOptions.MartyrTeamName.Value = teamBattleMode.teamNames[0];
-            if (teamBattleMode.teamNames.ContainsKey(1))
-                RainMeadow.rainMeadowOptions.OutlawsTeamName.Value = teamBattleMode.teamNames[1];
-            if (teamBattleMode.teamNames.ContainsKey(2))
-                RainMeadow.rainMeadowOptions.DragonSlayersTeamName.Value = teamBattleMode.teamNames[
-                    2
-                ];
-            if (teamBattleMode.teamNames.ContainsKey(3))
-                RainMeadow.rainMeadowOptions.ChieftainTeamName.Value = teamBattleMode.teamNames[3];
-
-            if (teamBattleMode.teamColors.ContainsKey(0))
-                RainMeadow.rainMeadowOptions.MartyrTeamColor.Value = teamBattleMode.teamColors[0];
-            if (teamBattleMode.teamColors.ContainsKey(1))
-                RainMeadow.rainMeadowOptions.OutlawsTeamColor.Value = teamBattleMode.teamColors[1];
-            if (teamBattleMode.teamColors.ContainsKey(2))
-                RainMeadow.rainMeadowOptions.DragonSlayersTeamColor.Value =
-                    teamBattleMode.teamColors[2];
-            if (teamBattleMode.teamColors.ContainsKey(3))
-                RainMeadow.rainMeadowOptions.ChieftainTeamColor.Value = teamBattleMode.teamColors[
-                    3
-                ];
         }
 
         public void PrevPage()

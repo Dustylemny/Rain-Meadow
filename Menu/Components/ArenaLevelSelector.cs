@@ -1,15 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Menu;
 using Menu.Remix;
 using Menu.Remix.MixedUI;
 using MoreSlugcats;
 using Newtonsoft.Json.Linq;
+using RainMeadow.Arena.Settings;
+using RainMeadow.Properties;
 using RainMeadow.UI.Components.Patched;
 using RainMeadow.UI.Interfaces;
 using RWCustom;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 using static Menu.Menu;
 using static MultiplayerUnlocks;
@@ -515,7 +517,11 @@ public class ArenaLevelSelector : PositionedMenuObject, IPLEASEUPDATEME
             get => MyLevelSelector?.GetGameTypeSetup?.shufflePlaylist == true;
             set
             {
-                if (MyLevelSelector?.GetGameTypeSetup != null) MyLevelSelector.GetGameTypeSetup.shufflePlaylist = value;
+                if (MyLevelSelector?.GetGameTypeSetup != null)
+                {
+                    MyLevelSelector.playListSettings.TrySetSettingToConnected("Shuffle playlist");
+                    MyLevelSelector.GetGameTypeSetup.shufflePlaylist = value;
+                }
             }
         }
         public bool IsMismatched => MyLevelSelector?.SelectedPlayList != null && (LevelItems.Count != MyLevelSelector.SelectedPlayList.Count || !MyLevelSelector.SelectedPlayList.SequenceEqual(LevelItems.Select(x => x.name)));
@@ -644,6 +650,7 @@ public class ArenaLevelSelector : PositionedMenuObject, IPLEASEUPDATEME
     public PlaylistHolder selectedLevelsPlaylist;
     public List<LevelUnlockID> unlockBatchIds = [];
     public List<string> allLevels = [], thumbsToBeLoaded = [], loadedThumbTextures = [];
+    public CategorySettings playListSettings = new("PlaylistSettings");
     public int thumbLoadDelay;
     public static int ThumbWidth => 100;
     public static int ThumbHeight => 50;
@@ -655,7 +662,8 @@ public class ArenaLevelSelector : PositionedMenuObject, IPLEASEUPDATEME
     public bool IsHidden { get; set; }
     public ArenaLevelSelector(Menu.Menu menu, MenuObject owner, Vector2 pos) : base(menu, owner, pos)
     {
-
+        if (GetArenaSetup is ArenaOnlineSetup onlineSetup)
+            onlineSetup.arenaOnlineSettings.TryLoadOrAddSetting(ref playListSettings);
         (owner?.Container ?? menu.container).AddChild(myContainer = new());
         for (int i = LevelUnlockID.Hidden.Index + 1; i < ExtEnum<LevelUnlockID>.values.Count; i++)
         {
@@ -694,6 +702,14 @@ public class ArenaLevelSelector : PositionedMenuObject, IPLEASEUPDATEME
         allLevelsPlaylist.AddSearchBar();
         selectedLevelsPlaylist = new(menu, this, new Vector2(200, 0)); //no support for search.
         this.SafeAddSubobjects(allLevelsPlaylist, selectedLevelsPlaylist);
+
+        var selectedPlaylist = new Settings<List<string>>("Selected playlist", [.. SelectedPlayList]);
+        selectedPlaylist.LoadFromSetting += (list, setting) => LoadNewPlaylist(list, true);
+        selectedPlaylist.LoadToSetting += (setting) => [..SelectedPlayList];
+        var shuffle = new Settings<bool>("Shuffle playlist", selectedLevelsPlaylist.ShuffleStatus);
+        shuffle.LoadFromSetting += (shufflestatus, setting) => selectedLevelsPlaylist.ShuffleStatus = shufflestatus;
+        shuffle.LoadToSetting += (setting) => selectedLevelsPlaylist.ShuffleStatus;
+        playListSettings.TryAddSettings(selectedPlaylist, shuffle);
     }
     public override void Update()
     {
@@ -727,13 +743,14 @@ public class ArenaLevelSelector : PositionedMenuObject, IPLEASEUPDATEME
         selectedLevelsPlaylist.AddLevelItem(item);
         selectedLevelsPlaylist.DownScrollOffset = selectedLevelsPlaylist.MaxDownScroll;
         selectedLevelsPlaylist.ConstrainScroll();
+        playListSettings.TrySetSettingToConnected("Selected playlist");
         menu.PlaySound(SoundID.MENU_Add_Level);
     }
     public void RemoveLevelFromPlayList(int index)
     {
         if (index < 0 || index >= SelectedPlayList.Count) return;
         SelectedPlayList.RemoveAt(index);
-
+        playListSettings.TrySetSettingToConnected("Selected playlist");
         menu.PlaySound(SoundID.MENU_Remove_Level);
     }
     public bool IsThumbnailLoaded(string levelName) => loadedThumbTextures.Contains(levelName);

@@ -2,20 +2,23 @@
 using Menu;
 using Menu.Remix;
 using Menu.Remix.MixedUI;
+using RainMeadow.Arena.Settings;
 using RainMeadow.UI.Components.Patched;
 using UnityEngine;
 
 namespace RainMeadow.UI.Components
 {
-    public class OnlineArenaSettingsInferface
-        : PositionedMenuObject,
-            CheckBox.IOwnCheckBox,
-            MultipleChoiceArray.IOwnMultipleChoiceArray
+    public class OnlineArenaSettingsInferface : PositionedMenuObject, CheckBox.IOwnCheckBox, MultipleChoiceArray.IOwnMultipleChoiceArray
     {
+        public const string ITEMSTEAL = "ITEMSTEAL", OVERSEER = "OVERSEER", MIDGAMEJOIN = "MIDGAMEJOIN", 
+            WEAPONCOLLISIONFIX = "WEAPONCOLLISIONFIX", ENABLEBOMBS = "ENABLEBOMBS", ENABLEBEES = "ENABLEBEES",
+            PIGGY = "PIGGY", CORPSEGRAB = "CORPSEGRAB";
+        public CategorySettings matchSettings = new("Match Settings");
         public ArenaSetup GetArenaSetup => menu.manager.arenaSetup;
         public ArenaSetup.GameTypeSetup GetGameTypeSetup =>
             GetArenaSetup.GetOrInitiateGameTypeSetup(GetArenaSetup.currentGameType);
         public bool SettingsDisabled => (menu as ArenaOnlineLobbyMenu)?.SettingsDisabled ?? true;
+        public bool isSyncing = false;
         public const string ROOMREPEAT = "ROOMREPEAT", SESSIONLENGTH = "SESSIONLENGTH", WILDLIFE = "WILDLIFE";
         public OnlineArenaSettingsInferface(
             Menu.Menu menu,
@@ -27,6 +30,7 @@ namespace RainMeadow.UI.Components
         )
             : base(menu, owner, pos)
         {
+            RegisterSettings();
             tabWrapper = new(menu, this);
             if (GetGameTypeSetup.gameType != ArenaSetup.GameTypeID.Competitive)
             {
@@ -61,7 +65,7 @@ namespace RainMeadow.UI.Components
                 new((settingsWidth - 24) / 2f, spearsHitCheckbox.pos.y),
                 InGameTranslator.LanguageID.UsesLargeFont(menu.CurrLang) ? 120 : 100,
                 menu.Translate("Overseers Show:"),
-                "OVERSEER",
+                OVERSEER,
                 false
             );
             divSprites = [new("pixel"), new("pixel")];
@@ -167,6 +171,7 @@ namespace RainMeadow.UI.Components
             {
                 if (RainMeadow.isArenaMode(out ArenaOnlineGameMode arena))
                     arena.setupTime = countdownTimerTextBox.valueInt;
+                matchSettings.TrySetSettingToConnected(RainMeadow.rainMeadowOptions.ArenaCountDownTimer);
             };
             enableCorpseGrab = new(
                 menu,
@@ -185,7 +190,7 @@ namespace RainMeadow.UI.Components
                 new Vector2(55f, countdownTimerTextBox.pos.y - 38),
                 150f,
                 menu.Translate("Item Stealing"),
-                "ITEMSTEAL"
+                ITEMSTEAL
             );
             allowMidGameJoinCheckbox = new(
                 menu,
@@ -257,7 +262,32 @@ namespace RainMeadow.UI.Components
                 enableCorpseGrab
             );
         }
+        public void RegisterSettings()
+        {
+            if (GetArenaSetup is ArenaOnlineSetup onlineSetup)
+            {
+                var settingManager = onlineSetup.settingsManager;
+                settingManager.TryLoadOrAddSetting(ref matchSettings);
+            }
+            List<BaseSetting> settings = [];
+            var countDown = new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaCountDownTimer);
+            countDown.LoadFromSetting += (val, setting) =>
+                {
+                    if (RainMeadow.isArenaMode(out ArenaOnlineGameMode arena))
+                        arena.setupTime = val;
+                };
+            var enableOverseer = new ConfigSetting<bool>(OVERSEER, RainMeadow.rainMeadowOptions.EnableOverseer);
+            settings.Add(countDown, enableOverseer);
+            settings.Add(new ConfigSetting<bool>(ITEMSTEAL, RainMeadow.rainMeadowOptions.ArenaItemSteal));
+            settings.Add(new ConfigSetting<bool>(MIDGAMEJOIN, RainMeadow.rainMeadowOptions.ArenaAllowMidJoin));
+            settings.Add(new ConfigSetting<bool>(WEAPONCOLLISIONFIX, RainMeadow.rainMeadowOptions.WeaponCollisionFix));
+            settings.Add(new ConfigSetting<bool>(ENABLEBOMBS, RainMeadow.rainMeadowOptions.EnableBombs));
+            settings.Add(new ConfigSetting<bool>(ENABLEBEES, RainMeadow.rainMeadowOptions.EnableBees));
+            settings.Add(new ConfigSetting<bool>(PIGGY, RainMeadow.rainMeadowOptions.EnablePiggyBack));
+            settings.Add(new ConfigSetting<bool>(CORPSEGRAB, RainMeadow.rainMeadowOptions.EnableCorpseGrab));
 
+            matchSettings.TryAddSettings([.. settings]);
+        }
         public override void RemoveSprites()
         {
             for (int i = 0; i < divSprites.Length; i++)
@@ -367,55 +397,34 @@ namespace RainMeadow.UI.Components
             {
                 if (id == "SPEARSHIT")
                 {
-                    arena.onlineArenaSettingsInterfaceeBool[id] = c;
                     GetGameTypeSetup.spearsHitPlayers = c;
+                    ArenaHelpers.SaveOptionToArena(box.IDString, c);
                 }
                 if (id == "EVILAI")
+                {
                     GetGameTypeSetup.evilAI = c;
+                    ArenaHelpers.SaveOptionToArena(box.IDString, c);
+                }
 
-                if (id == "OVERSEER")
-                {
+                if (id == OVERSEER)
                     arena.enableOverseer = c;
-                    return;
-                }
-                if (id == "ITEMSTEAL")
-                {
+                if (id == ITEMSTEAL)
                     arena.itemSteal = c;
-                    return;
-                }
-                if (id == "MIDGAMEJOIN")
-                {
+                if (id == MIDGAMEJOIN)
                     arena.allowJoiningMidRound = c;
-                    return;
-                }
-                if (id == "WEAPONCOLLISIONFIX")
-                {
+                if (id == WEAPONCOLLISIONFIX)
                     arena.weaponCollisionFix = c;
-                    return;
-                }
-                if (id == "ENABLEBOMBS")
-                {
+                if (id == ENABLEBOMBS)
                     arena.enableBombs = c;
-                    return;
-                }
-                if (id == "ENABLEBEES")
-                {
+                if (id == ENABLEBEES)
                     arena.enableBees = c;
-                    return;
-                }
-                if (id == "PIGGY")
-                {
+                if (id == PIGGY)
                     arena.piggyBack = c;
-                    return;
-                }
-                if (id == "CORPSEGRAB")
-                {
+                if (id == CORPSEGRAB)
                     arena.enableCorpseGrab = c;
-                    return;
-                }
             }
-
-            ArenaHelpers.SaveOptionToArena(box.IDString, c);
+            if (!isSyncing)
+                matchSettings.TrySetSettingToConnected(id);
         }
 
         public int GetSelected(MultipleChoiceArray array)
@@ -450,10 +459,13 @@ namespace RainMeadow.UI.Components
                     false
                 );
             ArenaHelpers.SaveOptionToArena(array.IDString, i);
+            if (!isSyncing)
+                matchSettings.TrySetSetting(array.IDString, i);
         }
 
         public void CallForSync() //call this after ctor if needed for sync at start
         {
+            isSyncing = true;
             foreach (MenuObject obj in subObjects)
             {
                 if (obj is CheckBox checkBox)
@@ -465,6 +477,7 @@ namespace RainMeadow.UI.Components
                 return;
             arena.setupTime = countdownTimerTextBox.valueInt;
             arena.currentGameMode = arenaGameModeComboBox.value;
+            isSyncing = false;
         }
 
         public bool gameModeComboBoxLastHeld;

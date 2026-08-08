@@ -2,10 +2,12 @@ using Menu;
 using Menu.Remix;
 using Menu.Remix.MixedUI;
 using Menu.Remix.MixedUI.ValueTypes;
+using RainMeadow.Arena.Settings;
 using RainMeadow.UI.Components.Patched;
 using RWCustom;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime;
 using UnityEngine;
 using static RainMeadow.UI.Components.TabContainer;
 
@@ -15,12 +17,15 @@ namespace RainMeadow.UI.Components
     {
         public const string WATCHERSETTINGS = "WATCHERSETTINGS", MSCSETTINGS = "MSCSETTINGS", BACKTOSELECT = "BACKTOSELECTSETTINGS";
         public SettingsPage? activeSettings;
+        public CategorySettings slugcatAbilitiesSettings = new("SlugcatAbilities");
         public Dictionary<string, SettingsPage> settingSignals = [];
         public MSCSettingsPage? mscSettingsTab;
         public WatcherSettingsPage? watcherSettingsTab;
         public SelectSettingsPage? selectSettings;
         public OnlineSlugcatAbilitiesInterface(Menu.Menu menu, MenuObject owner, Vector2 pos, string painCatName) : base(menu, owner, pos)
         {
+            if (menu.manager.arenaSetup is ArenaOnlineSetup onlineSetup)
+                onlineSetup.arenaOnlineSettings.TryLoadOrAddSetting(ref slugcatAbilitiesSettings);
             AddAllSettings(painCatName);
             if (settingSignals.Count > 1)
             {
@@ -62,7 +67,7 @@ namespace RainMeadow.UI.Components
         {
             // dusty says this does something, just trust them future Timbits
             foreach (SettingsPage settings in settingSignals.Values)
-                settings.CallForSync();
+                settings.LoadSyncOptions();
         }
         public void AddAllSettings(string paincatName)
         {
@@ -81,6 +86,7 @@ namespace RainMeadow.UI.Components
         {
             settingSignals[signal] = settings;
             subObjects.Add(settings);
+            settings.TryRegisterSettings(slugcatAbilitiesSettings);
             settings.Hide();
             if (activeSettings == null) SwitchTab(settings);
         }
@@ -117,6 +123,7 @@ namespace RainMeadow.UI.Components
             public MenuTabWrapper tabWrapper;
             public OpTextBox saintAscendDurationTimerTextBox;
             public MenuLabel saintAscendanceTimerLabel;
+            public CategorySettings mscSettings = new("MSC Settings");
 
 
             public OpTextBox artiExplosionTextBox, artiParryDistanceTextBox, artiStunDistanceTextBox;
@@ -153,7 +160,10 @@ namespace RainMeadow.UI.Components
                 artiStunDistanceTextBox.OnValueUpdate += (UIconfig config, string value, string lastValue) =>
                 {
                     if (!RainMeadow.isArenaMode(out ArenaOnlineGameMode arena)) return;
-                    arena.artiStunDistanceMult = artiStunDistanceTextBox.valueFloat;
+                    float stunDist = artiStunDistanceTextBox.valueFloat;
+                    arena.artiStunDistanceMult = stunDist;
+                    mscSettings.TrySetSetting(RainMeadow.rainMeadowOptions.ArtificerStunDistanceMult, stunDist);
+
                 };
                 artiStunDistanceLabel = new(menu, this, Translate("Artificer Stun Range Multiplier"), artiStunDistanceTextBox.pos + new Vector2(-textSpacing * 1.5f + 7.5f, 3), new(textSpacing, 20), false);
                 artiStunDistanceLabel.label.alignment = FLabelAlignment.Left;
@@ -169,7 +179,9 @@ namespace RainMeadow.UI.Components
                 artiParryDistanceTextBox.OnValueUpdate += (UIconfig config, string value, string lastValue) =>
                 {
                     if (!RainMeadow.isArenaMode(out ArenaOnlineGameMode arena)) return;
-                    arena.artiParryDistanceMult = artiParryDistanceTextBox.valueFloat;
+                    float parryDist = artiParryDistanceTextBox.valueFloat;
+                    arena.artiParryDistanceMult = parryDist;
+                    mscSettings.TrySetSetting(RainMeadow.rainMeadowOptions.ArtificerParryDistanceMult, parryDist);
                 };
                 artiParryDistanceLabel = new(menu, this, Translate("Artificer Parry Range Multiplier"), artiParryDistanceTextBox.pos + new Vector2(-textSpacing * 1.5f + 7.5f, 3), new(textSpacing, 20), false);
                 artiParryDistanceLabel.label.alignment = FLabelAlignment.Left;
@@ -186,7 +198,9 @@ namespace RainMeadow.UI.Components
                 saintAscendDurationTimerTextBox.OnValueUpdate += (UIconfig config, string value, string lastValue) =>
                 {
                     if (!RainMeadow.isArenaMode(out ArenaOnlineGameMode arena)) return;
-                    arena.arenaSaintAscendanceTimer = saintAscendDurationTimerTextBox.valueInt;
+                    int timer = saintAscendDurationTimerTextBox.valueInt;
+                    arena.arenaSaintAscendanceTimer = timer;
+                    mscSettings.TrySetSetting(RainMeadow.rainMeadowOptions.ArenaSaintAscendanceTimer, timer);
                 };
                 saintAscendanceTimerLabel = new(menu, this, Translate("Saint Ascendance Duration:"), saintAscendDurationTimerTextBox.pos + new Vector2(-textSpacing * 1.5f + 7.5f, 3), new(textSpacing, 20), false);
                 saintAscendanceTimerLabel.label.alignment = FLabelAlignment.Left;
@@ -205,7 +219,7 @@ namespace RainMeadow.UI.Components
             public override void SaveInterfaceOptions()
             {
                 MoreSlugcats.MoreSlugcats.cfgArtificerExplosionCapacity.Value = artiExplosionTextBox.valueInt;
-                RainMeadow.rainMeadowOptions.ArtificerParryDistanceMult.Value = artiParryDistanceTextBox.valueFloat;
+                /*RainMeadow.rainMeadowOptions.ArtificerParryDistanceMult.Value = artiParryDistanceTextBox.valueFloat;
                 RainMeadow.rainMeadowOptions.ArtificerStunDistanceMult.Value = artiStunDistanceTextBox.valueFloat;
                 RainMeadow.rainMeadowOptions.BlockMaul.Value = blockMaulCheckBox.Checked;
                 RainMeadow.rainMeadowOptions.ArtificerParryLeniency.Value = artiParryLeniencyCheckBox.Checked;
@@ -213,7 +227,20 @@ namespace RainMeadow.UI.Components
                 RainMeadow.rainMeadowOptions.PainCatEgg.Value = painCatEggCheckBox.Checked;
                 RainMeadow.rainMeadowOptions.PainCatThrows.Value = painCatThrowsCheckBox.Checked;
                 RainMeadow.rainMeadowOptions.PainCatLizard.Value = painCatLizardCheckBox.Checked;
-                RainMeadow.rainMeadowOptions.ArenaSaintAscendanceTimer.Value = saintAscendDurationTimerTextBox.valueInt;
+                RainMeadow.rainMeadowOptions.ArenaSaintAscendanceTimer.Value = saintAscendDurationTimerTextBox.valueInt;*/
+            }
+            public override void TryRegisterSettings(CategorySettings slugcatAbilitiesSettings)
+            {
+                slugcatAbilitiesSettings.TryLoadOrAddSetting(ref mscSettings);
+                mscSettings.TryAddSettings(new ConfigSetting<float>(RainMeadow.rainMeadowOptions.ArtificerParryDistanceMult));
+                mscSettings.TryAddSettings(new ConfigSetting<float>(RainMeadow.rainMeadowOptions.ArtificerStunDistanceMult));
+                mscSettings.TryAddSettings(new ConfigSetting<bool>(DISABLEMAUL,RainMeadow.rainMeadowOptions.BlockMaul));
+                mscSettings.TryAddSettings(new ConfigSetting<bool>(ARTIPARRYLENIENCY, RainMeadow.rainMeadowOptions.ArtificerParryLeniency));
+                mscSettings.TryAddSettings(new ConfigSetting<bool>(SAINOT, RainMeadow.rainMeadowOptions.ArenaSAINOT));
+                mscSettings.TryAddSettings(new ConfigSetting<bool>(PAINCATEGG, RainMeadow.rainMeadowOptions.PainCatEgg));
+                mscSettings.TryAddSettings(new ConfigSetting<bool>(PAINCATTHROWS, RainMeadow.rainMeadowOptions.PainCatThrows));
+                mscSettings.TryAddSettings(new ConfigSetting<bool>(PAINCATLIZARD, RainMeadow.rainMeadowOptions.PainCatLizard));
+                mscSettings.TryAddSettings(new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaSaintAscendanceTimer));
             }
             public override void CallForSync()
             {
@@ -290,10 +317,13 @@ namespace RainMeadow.UI.Components
                 if (id == PAINCATEGG) arena.painCatEgg = c;
                 if (id == PAINCATTHROWS) arena.painCatThrows = c;
                 if (id == PAINCATLIZARD) arena.painCatLizard = c;
+                if (!isSyncing)
+                    mscSettings.TrySetSetting(id, c);
             }
         }
         public class WatcherSettingsPage : SettingsPage
         {
+            public CategorySettings watcherSettings = new("Watcher Settings");
             public SimplerButton? backButton;
             public MenuTabWrapper tabWrapper;
             public MenuLabel watcherCamoLimitLabel, watcherRippleLevelLabel, weaverWatcherLabel, voidMasterLabel, amoebaDurationLabel, amoebaControlLabel, amoebaLethalityFactorLabel, fullInvisRippleSpaceLabel;
@@ -435,21 +465,37 @@ namespace RainMeadow.UI.Components
                 this.SafeAddSubobjects(tabWrapper, watcherCamoLimitLabel, watcherRippleLevelLabel, weaverWatcherLabel, voidMasterLabel, amoebaDurationLabel, amoebaLethalityFactorLabel, amoebaControlLabel, fullInvisRippleSpaceLabel);
 
             }
+            public override void TryRegisterSettings(CategorySettings slugcatAbilitiesSettings)
+            {
+                slugcatAbilitiesSettings.TryLoadOrAddSetting(ref watcherSettings);
+                watcherSettings.TryAddSettings(new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaWatcherCamoTimer));
+                watcherSettings.TryAddSettings(new ConfigSetting<int>(RainMeadow.rainMeadowOptions.ArenaWatcherRippleLevel));
+                watcherSettings.TryAddSettings(new ConfigSetting<int>(RainMeadow.rainMeadowOptions.AmoebaDuration));
+                watcherSettings.TryAddSettings(new ConfigSetting<float>(RainMeadow.rainMeadowOptions.VoidSpawnLethalityFactor));
+                watcherSettings.TryAddSettings(new ConfigSetting<bool>(RainMeadow.rainMeadowOptions.AmoebaControl));
+                watcherSettings.TryAddSettings(new ConfigSetting<bool>(RainMeadow.rainMeadowOptions.ArenaWatcherFullInvisibleInRippleSpace));
+                watcherSettings.TryAddSettings(new ConfigSetting<bool>(RainMeadow.rainMeadowOptions.VoidMaster));
+
+                watcherSettings.TryAddSettings(new ConfigSetting<bool>(RainMeadow.rainMeadowOptions.WeaverWatcher)
+                {
+                    isOwnerSetting = false
+                });
+            }
             public override void SaveInterfaceOptions()
             {
-                RainMeadow.rainMeadowOptions.ArenaWatcherCamoTimer.Value = watcherCamoLimitTextBox.valueInt;
+                /*RainMeadow.rainMeadowOptions.ArenaWatcherCamoTimer.Value = watcherCamoLimitTextBox.valueInt;
                 RainMeadow.rainMeadowOptions.ArenaWatcherRippleLevel.Value = watcherRippleLevelTextBox.valueInt;
                 RainMeadow.rainMeadowOptions.WeaverWatcher.Value = weaverWatcherCheckBox.GetValueBool();
                 RainMeadow.rainMeadowOptions.VoidMaster.Value = voidMasterCheckbox.GetValueBool();
                 RainMeadow.rainMeadowOptions.VoidSpawnLethalityFactor.Value = amoebaLethalityFactorTextBox.valueFloat;
                 RainMeadow.rainMeadowOptions.AmoebaDuration.Value = amoebaLifespanTextBox.valueInt;
                 RainMeadow.rainMeadowOptions.AmoebaControl.Value = amoebaControlCheckbox.GetValueBool();
-                RainMeadow.rainMeadowOptions.ArenaWatcherFullInvisibleInRippleSpace.Value = fullInvisRippleSpaceCheckbox.GetValueBool();
+                RainMeadow.rainMeadowOptions.ArenaWatcherFullInvisibleInRippleSpace.Value = fullInvisRippleSpaceCheckbox.GetValueBool();*/
 
             }
             public override void SaveInterfaceClientOptions()
             {
-                RainMeadow.rainMeadowOptions.WeaverWatcher.Value = weaverWatcherCheckBox.GetValueBool();
+                //RainMeadow.rainMeadowOptions.WeaverWatcher.Value = weaverWatcherCheckBox.GetValueBool();
             }
             public override void SelectAndCreateBackButtons(SettingsPage? previousSettingPage, bool forceSelectedObject)
             {
@@ -643,8 +689,15 @@ namespace RainMeadow.UI.Components
         }
         public abstract class SettingsPage(Menu.Menu menu, MenuObject owner) : Tab(menu, owner)
         {
+            public bool isSyncing = false;
             public bool SettingsDisabled => (menu as ArenaOnlineLobbyMenu)?.SettingsDisabled ?? true;
             public abstract string Name { get; }
+            public void LoadSyncOptions()
+            {
+                isSyncing = true;
+                CallForSync();
+                isSyncing = false;
+            }
             public virtual void SelectAndCreateBackButtons(SettingsPage? previousSettingPage, bool forceSelectedObject)
             {
                 if (forceSelectedObject)
@@ -652,7 +705,6 @@ namespace RainMeadow.UI.Components
             }
             public virtual void CallForSync()
             {
-
             }
             public virtual void SaveInterfaceOptions()
             {
@@ -661,6 +713,9 @@ namespace RainMeadow.UI.Components
             public virtual void SaveInterfaceClientOptions()
             {
 
+            }
+            public virtual void TryRegisterSettings(CategorySettings slugcatAbilitiesSettings)
+            { 
             }
         }
 

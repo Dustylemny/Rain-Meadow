@@ -7,6 +7,7 @@ using Menu.Remix;
 using Menu.Remix.MixedUI;
 using Menu.Remix.MixedUI.ValueTypes;
 using MoreSlugcats;
+using RainMeadow.Arena;
 using RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle;
 using RainMeadow.UI.Components;
 using RainMeadow.UI.Pages;
@@ -18,6 +19,7 @@ namespace RainMeadow.UI;
 
 public class ArenaOnlineLobbyMenu : SmartMenu
 {
+    public ArenaOnlineSetup arenaOnlineSetup;
     public ArenaMainLobbyPage arenaMainLobbyPage;
     public ArenaSlugcatSelectPage arenaSlugcatSelectPage;
     public Vector2 newPagePos = Vector2.zero;
@@ -43,7 +45,7 @@ public class ArenaOnlineLobbyMenu : SmartMenu
     public override bool CanEscExit => base.CanEscExit && currentPage == 0 && !pagesMoving;
     public override MenuScene.SceneID GetScene =>
         ModManager.MMF ? manager.rainWorld.options.subBackground : MenuScene.SceneID.Landscape_SU;
-    public ArenaSetup GetArenaSetup => manager.arenaSetup;
+    public ArenaOnlineSetup GetArenaSetup => arenaOnlineSetup;
     public ArenaSetup.GameTypeID CurrentGameType
     {
         get => GetArenaSetup.currentGameType;
@@ -65,7 +67,12 @@ public class ArenaOnlineLobbyMenu : SmartMenu
         if (backObject is SimplerButton btn)
             btn.description = Translate("Exit to Lobby Select");
         if (Arena.myArenaSetup == null)
+        {
             manager.arenaSetup = Arena.myArenaSetup = new ArenaOnlineSetup(manager); //loading it on game mode ctor loads the base setup prob due to lobby still being null
+            foreach (var gameMode in Arena.registeredGameModes)
+                gameMode.Value.RegisterSettings(Arena.myArenaSetup.arenaOnlineSettings);
+        }
+        arenaOnlineSetup = Arena.myArenaSetup;
         Futile.atlasManager.LoadAtlas("illustrations/arena_ui_elements");
         Futile.atlasManager.LoadAtlas("illustrations/ui_elements");
         if (Arena.currentGameMode == "" || Arena.currentGameMode == null)
@@ -128,7 +135,6 @@ public class ArenaOnlineLobbyMenu : SmartMenu
         Arena.AddToPostGameStatsDialog();
         // Arena.DisableMeadowCosmetics(); 
     }
-
     public void ChangeScene()
     {
         if (pendingScene == null)
@@ -363,6 +369,7 @@ public class ArenaOnlineLobbyMenu : SmartMenu
     {
         if (RainMeadow.isArenaMode(out _))
             Arena.externalArenaGameMode?.OnUIShutDown(this);
+        var onlineSetup = (GetArenaSetup as ArenaOnlineSetup);
         arenaMainLobbyPage.chatMenuBox.chatTypingBox.DelayedUnload(0.1f);
         ChatLogManager.Unsubscribe(arenaMainLobbyPage.chatMenuBox);
 
@@ -370,8 +377,9 @@ public class ArenaOnlineLobbyMenu : SmartMenu
         if (owner)
             GetArenaSetup.SaveToFile();
         else
-            (GetArenaSetup as ArenaOnlineSetup)?.SaveNonSessionToFile();
-
+            onlineSetup?.SaveNonSessionToFile();
+        onlineSetup?.settingsManager.StoreValueSomewhere();
+        onlineSetup?.settingsManager.SavePreset();
         arenaMainLobbyPage.SaveInterfaceOptions(owner);
         RainMeadow.rainMeadowOptions._SaveConfigFile();
 

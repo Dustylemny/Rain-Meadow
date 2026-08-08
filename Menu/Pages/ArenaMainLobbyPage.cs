@@ -5,6 +5,7 @@ using Menu;
 using Menu.Remix;
 using Menu.Remix.MixedUI;
 using Menu.Remix.MixedUI.ValueTypes;
+using RainMeadow.Arena;
 using RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle;
 using RainMeadow.UI.Components;
 using RainMeadow.UI.Interfaces;
@@ -43,14 +44,7 @@ public class ArenaMainLobbyPage : PositionedMenuObject, IDynamicBindHandler
     public ArenaOnlineLobbyMenu? ArenaMenu => menu as ArenaOnlineLobbyMenu;
     public NullLobbyError nullLobbyError;
 
-    public ArenaMainLobbyPage(
-        Menu.Menu menu,
-        MenuObject owner,
-        Vector2 pos,
-        string painCatName,
-        int painCatIndex
-    )
-        : base(menu, owner, pos)
+    public ArenaMainLobbyPage(Menu.Menu menu, MenuObject owner, Vector2 pos, string painCatName, int painCatIndex) : base(menu, owner, pos)
     {
         this.painCatIndex = painCatIndex;
         var scugslotsHint = UnityEngine.Random.Range(0, 21);
@@ -189,7 +183,6 @@ public class ArenaMainLobbyPage : PositionedMenuObject, IDynamicBindHandler
 
         menu.MutualVerticalButtonBind(chatMenuBox.chatTypingBox, arenaInfoButton);
     }
-
     public bool ShouldOpenSlugcatAbilitiesTab() => ModManager.MSC || ModManager.Watcher;
 
     public void BuildPlayerDisplay()
@@ -433,33 +426,6 @@ public class ArenaMainLobbyPage : PositionedMenuObject, IDynamicBindHandler
 
     public void SaveInterfaceOptions(bool saveOwnerOptions)
     {
-        if (saveOwnerOptions)
-        {
-            RainMeadow.rainMeadowOptions.ArenaCountDownTimer.Value = arenaSettingsInterface
-                .countdownTimerTextBox
-                .valueInt;
-            RainMeadow.rainMeadowOptions.ArenaItemSteal.Value = arenaSettingsInterface
-                .stealItemCheckBox
-                .Checked;
-            RainMeadow.rainMeadowOptions.ArenaAllowMidJoin.Value = arenaSettingsInterface
-                .allowMidGameJoinCheckbox
-                .Checked;
-            RainMeadow.rainMeadowOptions.EnablePiggyBack.Value = arenaSettingsInterface
-                .piggyBackCheckbox
-                .Checked;
-            RainMeadow.rainMeadowOptions.EnableOverseer.Value = arenaSettingsInterface
-                .overseerCheckbox
-                .Checked;
-            RainMeadow.rainMeadowOptions.EnableCorpseGrab.Value = arenaSettingsInterface
-                .enableCorpseGrab
-                .Checked;
-            RainMeadow.rainMeadowOptions.EnableBombs.Value = arenaSettingsInterface
-                .enableBombs
-                .Checked;
-            RainMeadow.rainMeadowOptions.EnableBees.Value = arenaSettingsInterface
-                .enableBees
-                .Checked;
-        }
 
         slugcatAbilitiesInterface?.SaveAllInterfaceOptions(saveOwnerOptions);
     }

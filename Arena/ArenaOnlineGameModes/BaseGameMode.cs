@@ -11,6 +11,7 @@ using System;
 using System.Text;
 using System.Reflection;
 using System.Collections;
+using RainMeadow.Arena.Settings;
 
 namespace RainMeadow
 
@@ -1305,7 +1306,10 @@ namespace RainMeadow
 
         public virtual bool DidPlayerWinRainbow(ArenaOnlineGameMode arena, OnlinePlayer player) =>
             arena.reigningChamps.list.Contains(player.id);
+        public virtual void RegisterSettings(CategorySettings arenaSettings) //this only called once. when arena first initializes on menu per lobby join
+        {
 
+        }
         public virtual void OnUIEnabled(ArenaOnlineLobbyMenu menu)
         {
             myTab = new(menu, menu.arenaMainLobbyPage.tabContainer);
