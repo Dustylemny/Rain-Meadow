@@ -113,6 +113,9 @@ public class ArenaOnlineLobbyMenu : SmartMenu
             painCatName,
             painCatIndex
         );
+        
+        RMOverlayHUD.GetOverlay()?.DestroyChatHUD();
+
         ChatLogManager.Subscribe(arenaMainLobbyPage.chatMenuBox);
         mainPage.SafeAddSubobjects(competitiveShadow, competitiveTitle, arenaMainLobbyPage);
         slugcatSelectPage.SafeAddSubobjects(arenaSlugcatSelectPage);
@@ -267,6 +270,7 @@ public class ArenaOnlineLobbyMenu : SmartMenu
             if (Arena.lobbyCountDown > 0)
             {
                 Arena.initiateLobbyCountdown = true;
+                Arena.timerTicks = 0;
                 return;
             }
         }

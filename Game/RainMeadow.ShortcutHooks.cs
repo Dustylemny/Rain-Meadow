@@ -45,7 +45,7 @@ namespace RainMeadow
                     self.world.GetResource()?.ApoEnteringWorld(apo);
                     self.abstractRoom.GetResource()?.ApoEnteringRoom(apo, apo.pos);
                 }
-            }
+            }            
         }
 
         // removes entities that should be deleted when going between rooms
@@ -185,7 +185,7 @@ namespace RainMeadow
 
                             bool ready = orig_result;
                             if (!innerOnlineEntity.isTransferable && apo.realizedObject is not null) {
-                                apo.world.ActivateRoom(vessel.room);
+                                apo.world.game.roomRealizer.MeadowRealizeAndTrackRoom(vessel.room, true);
                                 if (apo is AbstractCreature critter)
                                 {
                                     ready = ready && self.CreatureAllowedInRoom(critter, vessel.room.realizedRoom);

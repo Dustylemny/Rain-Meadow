@@ -2,6 +2,7 @@
 using System.Linq;
 using RWCustom;
 using UnityEngine;
+using Watcher;
 
 namespace RainMeadow
 {
@@ -69,20 +70,27 @@ namespace RainMeadow
 
         [RPCMethod]
         public static void Weapon_HitAnotherThrownWeapon(RPCEvent rpc,
-            OnlinePhysicalObject weapon1, OnlinePhysicalObject weapon2, RealizedWeaponState realizedWeaponState1, RealizedWeaponState realizedWeaponState2, UnityEngine.Random.State rng)
+            OnlinePhysicalObject onlineWeapon1, OnlinePhysicalObject onlineWeapon2, 
+            RealizedWeaponState realizedWeaponState1, RealizedWeaponState realizedWeaponState2, 
+            Vector2 weapon1LastPos, Vector2 weapon2LastPos, // To get the right sound/visual effect
+            UnityEngine.Random.State rng)
         {
-            if (weapon1.IsLocked("parry") || weapon2.IsLocked("parry")) return;
-            if (rpc.from != weapon1.owner && rpc.from != weapon2.owner) throw new InvalidOperationException("Not owner of either weapon");
+            if (onlineWeapon1.IsLocked("parry") || onlineWeapon2.IsLocked("parry")) return;
+            if (rpc.from != onlineWeapon1.owner && rpc.from != onlineWeapon2.owner) throw new InvalidOperationException("Not owner of either weapon");
             var state = UnityEngine.Random.state;
             
             try
             {
                 UnityEngine.Random.state = rng;
-                if (weapon1.apo.realizedObject != null && weapon2.apo.realizedObject != null)
+                if (onlineWeapon1.apo.realizedObject is Weapon weapon1 && onlineWeapon2.apo.realizedObject is Weapon weapon2)
                 {
-                    realizedWeaponState1.ReadTo(weapon1);
-                    realizedWeaponState2.ReadTo(weapon2);
-                    (weapon1.apo.realizedObject as Weapon).HitAnotherThrownWeapon(weapon2.apo.realizedObject as Weapon);
+                    realizedWeaponState1.ReadTo(onlineWeapon1);
+                    weapon1.firstChunk.lastPos = weapon1LastPos;
+                    
+                    realizedWeaponState2.ReadTo(onlineWeapon2);
+                    weapon2.firstChunk.lastPos = weapon2LastPos;
+
+                    weapon1.HitAnotherThrownWeapon(weapon2);
                 }
             }
             finally
@@ -126,8 +134,7 @@ namespace RainMeadow
             string incomingUsername = rpc.from.id.name;
 
             RainMeadow.Debug("Incoming: " + incomingUsername + ": " + lastSentMessage);
-            if (RainMeadow.rainMeadowOptions.GlobalMute.Value) return;
-            if (OnlineManager.lobby.gameMode.mutedPlayers.Contains(incomingUsername)) return;
+            if (ChatLogManager.ShouldMuteMessageFromUser(incomingUsername)) return;
             if (RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game)
             {
                 foreach (var onlineHud in game.cameras[0].hud.parts.OfType<PlayerSpecificOnlineHud>())
@@ -281,6 +288,37 @@ namespace RainMeadow
                 myKiller = opo2;
             }
             DeathMessage.CreatureKillPlayer(myKiller, myTarget);
+        }
+
+        [RPCMethod]
+        public static void LightingMakerStrike(RPCEvent rpc, RoomSession roomSession, Vector2 pos, float branchingChance, float size, float effectRadius, float killRadius, int delayFrames)
+        {
+            var lm = roomSession.absroom.realizedRoom?.lightningMaker;
+            if (roomSession.owner != rpc.from || lm == null) return; // only allow RPC from room owner in a room with a lightning maker
+
+            // validate variables
+            branchingChance = Mathf.Clamp01(branchingChance);
+            size = Mathf.Clamp01(size);
+            effectRadius = Mathf.Clamp(effectRadius, 0f, 1000f);
+            killRadius = Mathf.Clamp(killRadius, 0f, 1000f);
+            delayFrames = Mathf.Clamp(delayFrames, 0, 400);
+            // spawn strikedata
+            if (lm.IsPosProtected(pos) && killRadius != 0) return;
+            var strikeData = new LightningMaker.StrikeData
+            {
+                pos = pos,
+                branchingChance = branchingChance,
+                effectRadius = effectRadius,
+                killRadius = killRadius,
+                buildupTime = delayFrames,
+                staticBuildup = new LightningMaker.StaticBuildup(pos, delayFrames, effectRadius, killRadius, lm.room, lm.mainColor)
+                {
+                    snapToWater = lm.room.PointSubmerged(pos)
+                }
+            };
+            strikeData.pos = strikeData.staticBuildup.pos;
+            lm.strikeQueue.Add(strikeData);
+            lm.room.AddObject(strikeData.staticBuildup);
         }
     }
 }

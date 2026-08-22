@@ -1,11 +1,8 @@
-using RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle;
 using RWCustom;
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle;
 using UnityEngine;
-using UnityEngine.PlayerLoop;
-using static RainMeadow.Arena.ArenaOnlineGameModes.TeamBattle.TeamBattleMode;
 
 namespace RainMeadow
 {
@@ -17,7 +14,7 @@ namespace RainMeadow
         public List<FLabel> messageLabels = new();
         public FLabel pingLabel;
         public FLabel? scoreLabel;
-        public FSprite slugIcon;
+        public PlayerIcon playerIcon;
         public OnlinePlayer player;
         public class Message
         {
@@ -47,7 +44,7 @@ namespace RainMeadow
         public float blink;
         public float lastBlink;
         public int onlineTimeSinceSpawn;
-        public string iconString;
+        public string? iconString;
         public bool flashIcons;
         public float fadeSpeed;
         public int realPing;
@@ -64,6 +61,12 @@ namespace RainMeadow
             if (RainMeadow.isArenaMode(out var a))
             {
                 this.color = a.externalArenaGameMode.IconColor(a, this, owner, customization, player);
+            }
+            else if (RainMeadow.isStoryMode(out _)
+                && OnlineManager.lobby.clientSettings.TryGetValue(player, out var cs)
+                && cs.chatUsernameColor is Color chatUsernameColor)
+            {
+                this.color = chatUsernameColor;
             }
             Color.RGBToHSV(color, out H, out S, out V);
 
@@ -108,11 +111,6 @@ namespace RainMeadow
                 {
                     this.iconString = "ChieftainA";
                 }
-                else
-                {
-                    this.iconString = "Kill_Slugcat";
-                }
-
 
                 if (customization.globalMute)
                 {
@@ -124,25 +122,11 @@ namespace RainMeadow
                 }
 
             }
-            if (RainMeadow.isArenaMode(out var arena))
-            {
-                if (arena.reigningChamps != null && arena.reigningChamps.list != null && arena.reigningChamps.list.Contains(player.id))
-                {
-                    this.iconString = "Multiplayer_Star";
-                }
-                else if (arena.externalArenaGameMode.AddIcon(arena, this, owner, customization, player) != "")
-                {
-                    this.iconString = arena.externalArenaGameMode.AddIcon(arena, this, owner, customization, player);
-                }
-            }
 
-            this.slugIcon = new FSprite(iconString, true);
-            owner.hud.fContainers[0].AddChild(this.slugIcon);
-            this.slugIcon.alpha = 0f;
-            this.slugIcon.x = -1000f;
+            playerIcon = new PlayerIcon(owner.hud.fContainers[0], customization, lighter_color);
+            playerIcon.container.alpha = 0f;
+            playerIcon.container.x = -1000f;
 
-
-            this.slugIcon.color = lighter_color;
             this.blink = 1f;
 
             this.username = new FLabel(Custom.GetFont(), UsernameGenerator.StreamerModeName(customization.nickname));
@@ -165,7 +149,11 @@ namespace RainMeadow
             this.arrowSprite.x = -1000f;
             this.arrowSprite.color = lighter_color;
 
-            if (RainMeadow.isArenaMode(out var arenaForScore) && arenaForScore.WinByScore)
+            this.customization = customization;
+
+            this.fadeSpeed = 20f;
+
+            if (RainMeadow.isArenaMode(out _))
             {
                 this.scoreLabel = new FLabel(Custom.GetFont(), "0");
                 owner.hud.fContainers[0].AddChild(this.scoreLabel);
@@ -174,9 +162,6 @@ namespace RainMeadow
                 this.scoreLabel.color = Color.white;
             }
 
-            this.customization = customization;
-
-            this.fadeSpeed = 20f;
         }
 
         public override void Update()
@@ -188,16 +173,19 @@ namespace RainMeadow
             this.flashIcons = (RainMeadow.rainMeadowOptions.ShowFriends.Value || RainMeadow.rainMeadowOptions.ReadyToContinueToggle.Value) && (owner.PlayerInGate || owner.PlayerInShelter);
 
             bool show = RainMeadow.rainMeadowOptions.ShowFriends.Value || (owner.clientSettings.isMine && onlineTimeSinceSpawn < 120);
-            if (RainMeadow.isArenaMode(out var a) && owner.RealizedPlayer?.isCamo == true)
+            int myRippleLayer = owner.abstractPlayer?.world?.game?.ActiveRippleLayer ?? 0;
+            if (RainMeadow.isArenaMode(out var a) && (owner.RealizedPlayer?.isCamo == true || myRippleLayer == 1))
             {
                 // Check if we are teammates (Only true if it's Team Battle AND we are on the same team)
-                bool isTeammate = TeamBattleMode.isTeamBattleMode(a, out _) && ArenaHelpers.CheckSameTeam(OnlineManager.mePlayer, player);
+                bool isTeammate = TeamBattleMode.IsTeamBattleMode(out _) && ArenaHelpers.CheckSameTeam(OnlineManager.mePlayer, player);
+                // Check the ripple layer of the other player
+                int otherRippleLayer = owner.abstractPlayer?.rippleLayer ?? 0;
 
-                // Hide if it's NOT me AND it's NOT a teammate
-                if (!player.isMe && !isTeammate)
+                // Hide if it's NOT me AND it's NOT a teammate AND you're NOT both in the ripple space
+                if (!player.isMe && !isTeammate && (myRippleLayer != 1 || otherRippleLayer != 1))
                 {
                     show = false;
-                    pos.x = -1000;
+                    pos.x = -1000f;
                     this.alpha = 0f;
                 }
             }
@@ -224,39 +212,27 @@ namespace RainMeadow
 
                     if (onlineTimeSinceSpawn < 135 && owner.clientSettings.isMine)
                     {
-                        slugIcon.SetElementByName("Kill_Slugcat");
+                        playerIcon.DrawSlugIcon(false);
                     }
                     else if (RainMeadow.isArenaMode(out var arena))
                     {
-                        if (arena.externalArenaGameMode.AddIcon(arena, this, owner, customization, player) != "")
-                        {
-                            slugIcon.SetElementByName(arena.externalArenaGameMode.AddIcon(arena, this, owner, customization, player));
-                        }
-                        else if (owner.PlayerConsideredDead) slugIcon.SetElementByName("Multiplayer_Death");
-                        slugIcon.color = arena.externalArenaGameMode.IconColor(arena, this, owner, customization, player);
-
+                        string arenaIcon = arena.externalArenaGameMode.AddIcon(arena, this, owner, customization, player);
+                        if (arenaIcon != "") playerIcon.DrawSingleElement(arenaIcon);
+                        else playerIcon.DrawSlugIcon(owner.PlayerConsideredDead);
+                        playerIcon.icon.color = arena.externalArenaGameMode.IconColor(arena, this, owner, customization, player);
                     }
-                    else if (owner.PlayerInAncientShelter) slugIcon.SetElementByName("ShortcutAShelter");
-                    else if (owner.PlayerInShelter) slugIcon.SetElementByName("ShortcutShelter");
-                    else if (owner.PlayerInGate) slugIcon.SetElementByName("ShortcutGate");
-                    else if (owner.PlayerConsideredDead) slugIcon.SetElementByName("Multiplayer_Death");
-
-                    else slugIcon.SetElementByName(iconString);
-                    if (slugIcon.element.name == "meadowcoin")
-                    {
-                        this.slugIcon.scale = 0.08f;
-                    }
-                    else
-                    {
-                        this.slugIcon.scale = 1f;
-                    }
+                    else if (owner.PlayerInAncientShelter) playerIcon.DrawSingleElement("ShortcutAShelter");
+                    else if (owner.PlayerInShelter) playerIcon.DrawSingleElement("ShortcutShelter");
+                    else if (owner.PlayerInGate) playerIcon.DrawSingleElement("ShortcutGate");
+                    else if (iconString is null) playerIcon.DrawSlugIcon(owner.PlayerConsideredDead);
+                    else playerIcon.DrawSingleElement(iconString);
 
                     if (flashIcons) this.alpha = Mathf.Lerp(lighter_color.a, 0f, (Mathf.Cos(owner.owner.hudCounter / fadeSpeed) + 1f) / 2f);
                     else if (RainMeadow.rainMeadowOptions.ShowFriends.Value) this.alpha = lighter_color.a;
                 }
                 else
                 {
-                    pos.x = -1000;
+                    pos.x = -1000f;
                 }
 
                 this.counter++;
@@ -371,33 +347,35 @@ namespace RainMeadow
                 messageLabels[i].text = "";
             }
 
-            this.slugIcon.x = pos.x;
-            this.slugIcon.y = pos.y;
+            playerIcon.Pos = pos;
 
             if (RainMeadow.isArenaMode(out var arena) && this.scoreLabel != null)
             {
-                this.scoreLabel.x = pos.x + 20f;
-                this.scoreLabel.y = pos.y;
-                this.scoreLabel.alpha = num;
-                int lobbyId = player.inLobbyId;
-                int playerNumber = -1;
-                if (arena.session != null && owner != null && owner.RealizedPlayer != null)
+                if (arena.ShowScore)
                 {
-                    playerNumber = ArenaHelpers.FindOnlinePlayerNumber(arena, player);
-                    int score = arena.session.ScoreOfPlayer(owner.RealizedPlayer, true);
-                    if (arena.playerTotScore.TryGetValue(lobbyId, out int totScore) &&
-                        playerNumber != -1)
+                    this.scoreLabel.alpha = num;
+                    this.scoreLabel.SetPosition(pos.x + 20f, pos.y);
+
+                    if (arena.ArenaSession != null && owner?.RealizedPlayer != null
+                        && ArenaHelpers.FindOnlinePlayerNumber(arena, player) != -1
+                        && arena.TotalScoreByOPlayer.TryGetValue(player, out int totScore))
                     {
-                        bool sessionEnded = arena.session.sessionEnded;
-                        this.scoreLabel.text = arena.externalArenaGameMode != null && arena.externalArenaGameMode.ShowAddedScoreBetweenRoundsInOnlinePlayerUI
-                            ? (sessionEnded ? totScore.ToString() : (totScore + score).ToString())
+                        int score = arena.ArenaSession.ScoreOfPlayer(owner.RealizedPlayer, true);
+                        bool showAdded = arena.externalArenaGameMode?.ShowAddedScoreBetweenRoundsInOnlinePlayerUI == true;
+                        this.scoreLabel.text = showAdded
+                            ? (arena.ArenaSession.sessionEnded ? totScore : totScore + score).ToString()
                             : score.ToString();
                     }
+                }
+                else
+                {
+                    this.scoreLabel.alpha = 0f;
+                    this.scoreLabel.SetPosition(-1000f, -1000f);
                 }
             }
 
             this.arrowSprite.alpha = num;
-            this.slugIcon.alpha = num;
+            playerIcon.Alpha = num;
             if (this.messageQueue.Count > 0 && (flashIcons || RainMeadow.rainMeadowOptions.ShowFriends.Value))
             {
                 this.username.alpha = lighter_color.a;
@@ -440,7 +418,7 @@ namespace RainMeadow
             this.username.RemoveFromContainer();
             pingLabel.RemoveFromContainer();
             foreach (var label in this.messageLabels) label.RemoveFromContainer();
-            this.slugIcon.RemoveFromContainer();
+            this.playerIcon.RemoveFromContainer();
             if (this.scoreLabel != null)
             {
                 this.scoreLabel.RemoveFromContainer();

@@ -5,6 +5,22 @@ namespace RainMeadow
 {
     public partial class RainMeadow
     {
+        public void InitializeExtEnums()
+        {
+            // Run static initializers for each class
+            _ = Ext_HUD_OwnerType.RainMeadowOverlay;
+            _ = Ext_ProcessID.OnlineManager;
+            _ = Ext_SlugcatStatsName.OnlineSessionPlayer;
+            _ = Ext_SceneID.Slugcat_MeadowSquidcicada;
+            _ = Ext_PhysicalObjectType.MeadowPlant;
+            _ = Ext_SoundID.RM_Slugcat_Call;
+            _ = Ext_OverseerHologram_Message.OverseerEmote;
+        }
+
+        public class Ext_HUD_OwnerType
+        {
+            public static HUD.HUD.OwnerType RainMeadowOverlay = new("RainMeadowOverlay", true);
+        }
         public class Ext_ProcessID
         {
             public static ProcessManager.ProcessID OnlineManager = new("MeadowOnlineManager", true);
@@ -14,8 +30,9 @@ namespace RainMeadow
             public static ProcessManager.ProcessID MeadowMenu = new("MeadowMenu", true);
             public static ProcessManager.ProcessID StoryMenu = new("StoryMenu", true);
             public static ProcessManager.ProcessID SpectatorMode = new("SpectatorMode", true);
-            public static ProcessManager.ProcessID ChatMode = new("ChatMode", true);
+            // public static ProcessManager.ProcessID ChatMode = new("ChatMode", true);
             public static ProcessManager.ProcessID MeadowCredits = new("MeadowCredits", true);
+            public static ProcessManager.ProcessID RainMeadowOverlay = new("RainMeadowOverlay", true);
         }
 
         public class Ext_SlugcatStatsName

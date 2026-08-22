@@ -10,8 +10,8 @@ namespace RainMeadow
 {
     public class SteamLobbyInfo : LobbyInfo {
         public CSteamID iD;
-        public SteamLobbyInfo(CSteamID id, string name, string mode, int playerCount, bool hasPassword, int? maxPlayerCount, string highImpactMods = "", string bannedMods = "") : 
-            base(name, mode, playerCount, hasPassword, maxPlayerCount, highImpactMods, bannedMods) {
+        public SteamLobbyInfo(CSteamID id, string name, string mode, int playerCount, bool hasPassword, int? maxPlayerCount, string highImpactMods = "", string bannedMods = "", string activeTimeline = "") : 
+            base(name, mode, playerCount, hasPassword, maxPlayerCount, highImpactMods, bannedMods, activeTimeline) {
             iD = id;
 
 
@@ -143,7 +143,9 @@ namespace RainMeadow
                             bool.TryParse(SteamMatchmaking.GetLobbyData(id, PASSWORD_KEY), out var hasPass) && hasPass, 
                             SteamMatchmaking.GetLobbyMemberLimit(id), 
                             SteamMatchmaking.GetLobbyData(id, MODS_KEY), 
-                            SteamMatchmaking.GetLobbyData(id, BANNED_MODS_KEY));
+                            SteamMatchmaking.GetLobbyData(id, BANNED_MODS_KEY),
+                            SteamMatchmaking.GetLobbyData(id, CAMPAIGN_KEY)
+                        );
                     }
                 }
 
@@ -179,7 +181,8 @@ namespace RainMeadow
             "cOL0sHXOvRyn7y5S+3VXWmuyZE1KvQXdfBgcHrph2kE=",
             "3aA5+Ga/lMY848/EcCZLBnO93TS1RhPfSMgAGtf7MQY=",
             "5eD7MQy+i6B6862JCgkjFXRevE7UFU+kvvBGPXJ4hGQ=",
-            "iJFBCXhwwaHxbJ5uXfmZsK7Ad9a7vZgT1ZwiofO0aMg="
+            "iJFBCXhwwaHxbJ5uXfmZsK7Ad9a7vZgT1ZwiofO0aMg=",
+            "M3smpDDQz/tATCx0pV4fdW1GDsSWgdbCaAxPhT46cH0="
         };
 
         public override bool IsDev(MeadowPlayerId player)
@@ -236,7 +239,7 @@ namespace RainMeadow
             m_JoinLobbyCall.Set(SteamMatchmaking.JoinLobby((lobby as SteamLobbyInfo).iD));
         }
 
-        public override void JoinLobby(bool success)
+        public override void JoinLobby(bool success, string failReason = "")
         {
             if (success)
             {
@@ -245,8 +248,8 @@ namespace RainMeadow
             else
             {
                 LeaveLobby();
-                RainMeadow.Debug("Failed to join local game. Wrong Password");
-                OnLobbyJoinedEvent(false, Utils.Translate("Wrong password!"));
+                RainMeadow.Debug($"Failed to join local game. {failReason}");
+                OnLobbyJoinedEvent(false, Utils.Translate(failReason));
             }
         }
 
@@ -523,9 +526,12 @@ namespace RainMeadow
             }
         }
 
+        /// <inheritdoc/>
         public override void LeaveLobby()
         {
             RainMeadow.DebugMe();
+            OnLobbyLeavingEvent();
+            
             if (lobbyID != default)
             {
                 SteamMatchmaking.LeaveLobby(lobbyID);
