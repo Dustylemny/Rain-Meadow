@@ -41,7 +41,6 @@ namespace RainMeadow.UI.Components
             }
         }
         public bool MouseOverTexture => WithinBounds(menu.mousePosition, default);
-        public bool IsHidden { get; set; }
         public UIMask(Menu.Menu menu, MenuObject owner, Vector2 pos, Vector2 size, FContainer itemMaskContainer) : base(menu, owner, pos, size)
         {
             maskContainer = itemMaskContainer;
@@ -108,6 +107,7 @@ namespace RainMeadow.UI.Components
         {
             if (dirty || lastSize != size)
             {
+                dirty = false;
                 uiCam.size = CamViewSizeOffset + size;
                 uiCam.pos = initialCamPos + CamViewPosOffset;
             }
@@ -176,8 +176,6 @@ namespace RainMeadow.UI.Components
                     OpScrollBox._cameras.Add(cam);
                 }
                 this.index = index;
-                cam.clearFlags = CameraClearFlags.SolidColor;
-                cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
             }
             public void CreateRender()
             {

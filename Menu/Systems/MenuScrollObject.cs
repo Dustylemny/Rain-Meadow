@@ -17,6 +17,7 @@ namespace RainMeadow.UI.Systems
         public MenuScrollObject? cachedParentInScroller;
         public IScrollObjectHolder? scroller; //you could have a parent in scroller but have access to this
         public int indexInScroller = -1;
+        public bool withinScrollerBounds = true;
         public bool isValidForScroller;
         public FContainer objectContainer; //default is myContainer, you can change this
         public float desiredAlpha = 1;
@@ -42,9 +43,9 @@ namespace RainMeadow.UI.Systems
                 return parentMenuObj.ParentInScroller;
             }
         }
-        public bool IsMouseWithinBounds => scroller == null || scroller.MouseOverItemBounds;
-        public bool IsWithinBounds => scroller == null || scroller.WithinBounds(ScreenPos, Size);
-        public Vector2 ScreenPos => menuObject is PositionedMenuObject posObj ? posObj.ScreenPos : default;
+        public bool IsMouseWithinBounds => scroller == null || scroller.MouseOver;
+        public bool IsWithinBounds => scroller == null || withinScrollerBounds;
+        public Vector2 ScreenPos => menuObject is PositionedMenuObject posObj ? posObj.ScreenPos : LocalPos;
         public virtual float LocalAlpha { get => desiredAlpha; set => desiredAlpha = value; }
         public virtual Vector2 LocalPos 
         {
@@ -117,11 +118,17 @@ namespace RainMeadow.UI.Systems
                 cachedParentInScroller = ParentInScroller;
                 scroller = cachedParentInScroller?.scroller;
             }
-            if (scroller == null || cachedParentInScroller != null) return;
-            if (!scroller.ScrollObjectsDirty) return;
-            Size = scroller.SizeOfObject(Size);
-            var pos = LocalPos = scroller.PositionOfObject(indexInScroller, LocalPos);
-            LocalAlpha = scroller.AlphaOfObject(pos, Size);
+            if (scroller == null) return;
+            if (cachedParentInScroller == null)
+            {
+                if (scroller.ScrollObjectsDirty)
+                {
+                    Size = scroller.SizeOfObject(Size);
+                    var pos = LocalPos = scroller.PositionOfObject(indexInScroller, LocalPos);
+                    LocalAlpha = scroller.AlphaOfObject(pos, Size);
+                }
+            }
+            withinScrollerBounds = scroller.WithinBounds(ScreenPos, Size);
         }
         public virtual void GrafUpdateInObject(float timeStacker)
         {
@@ -169,6 +176,7 @@ namespace RainMeadow.UI.Systems
             scroller = null;
             indexInScroller = -1;
             LocalAlpha = 1;
+            withinScrollerBounds = true;
             AddRemoveSubobjectsToScroller(menuObject, this, false);
         }
         public virtual void ParentAddedIntoScroller(MenuScrollObject parentInScroller)
@@ -181,6 +189,7 @@ namespace RainMeadow.UI.Systems
         {
             scroller = null;
             cachedParentInScroller = null;
+            withinScrollerBounds = true;
             AddRemoveSubobjectsToScroller(menuObject, parentInScroller, false);
         }
     }
