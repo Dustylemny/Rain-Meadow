@@ -1,18 +1,23 @@
 ﻿using Menu;
-using UnityEngine;
-using System;
 using Menu.Remix.MixedUI;
-using System.Collections;
 using MonoMod.RuntimeDetour;
+using RainMeadow.UI.Interfaces;
+using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
+using UnityEngine;
 
 namespace RainMeadow
 {
-    public class ChatTextBox : ChatTemplate, ICanBeTyped
+    public class ChatTextBox : ChatTemplate, ICanBeTypedIME
     {
+        private Vector2 camPositionOffset;
+        private RenderTexture renderTexture;
+        private FTexture _texture;
+        private Camera cam;
         private ButtonTypingHandler typingHandler;
         private GameObject gameObject;
         private bool isUnloading = false;
@@ -45,8 +50,6 @@ namespace RainMeadow
         public static event Action? OnShutDownRequest;
         public event Action? OnTextSubmit;
 
-        public int VisibleTextLimit => visibleTextLimit ?? Mathf.FloorToInt(menuLabel.size.x / Mathf.Max(LabelTest.GetWidth(lastSentMessage) / Mathf.Max(lastSentMessage.Length, 1), 1));
-        public int? visibleTextLimit;
         public static string Clipboard
         {
             get
@@ -77,7 +80,6 @@ namespace RainMeadow
         public bool TypingOnOtherObjects => CanBeTypedExt._handler?._focused != null;
         public bool DontGetInputs => menu.FreezeMenuFunctions || lastFreezeMenuFunctions || !menu.Active || page != menu.pages.GetValueOrDefault(menu.currentPage);
         //
-
         public static bool AnyCtrl => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftApple);
         public static bool AnyShift => Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
@@ -108,8 +110,29 @@ namespace RainMeadow
                 else
                     cs.isInteracting = Focused;
             }
-        }
+            cam = new GameObject("maskchattextboxmask").AddComponent<Camera>();
+            int index = OpScrollBox._cameras.Count;
+            for (int i = 0; i < OpScrollBox._cameras.Count; i++)
+            {
+                if (OpScrollBox._cameras[i] == null)
+                {
+                    OpScrollBox._cameras[i] = cam;
+                    index = i;
+                    break;
+                }
+            }
+            cam.name += " " + index;
+            camPositionOffset = new (10000f, -10000f - 10300f * index);
 
+        }
+        public void UpdateMask()
+        {
+            cam.aspect = size.x / size.y;
+            cam.orthographic = true;
+            cam.orthographicSize = size.y / 2f;
+
+            if (renderTexture == null || !Mathf.Approximately(renderTexture.width, base.size.x) || !Mathf.Approximately(renderTexture.height, base.size.y))
+        }
         public override void Clicked()
         {
             base.Clicked();
@@ -326,6 +349,7 @@ namespace RainMeadow
             {
                 menu.allowSelectMove = false;
             }
+
             maxVisibleLength = VisibleTextLimit;
         }
 
@@ -827,11 +851,7 @@ namespace RainMeadow
             }
         }
 
-        public override bool IsFoucsed()
-        {
-            if (!MultiView) return true;
-            return Focused;
-        }
+        public override bool IsFocused() => !MultiView || Focused;
 
         private static bool GetKey(Func<string, bool> orig, string name) => blockInput ? false : orig(name);
         private static bool GetKey(Func<KeyCode, bool> orig, KeyCode code)

@@ -2,6 +2,7 @@
 using Menu;
 using Menu.Remix.MixedUI;
 using RainMeadow.UI.Components;
+using RainMeadow.UI.Interfaces;
 
 namespace RainMeadow
 {
@@ -9,7 +10,6 @@ namespace RainMeadow
     {
         public bool MultiView;
         public int maxVisibleLength;
-
         public HSLColor labelColor;
         public AlignedMenuLabel menuLabel;
         public RoundedRect roundedRect;
@@ -20,7 +20,14 @@ namespace RainMeadow
         public FSprite _cursor;
         public float _cursorWidth;
         public FSpriteWrap cursorWrap;
-
+        public virtual Vector2 CursorScreenPos
+        {
+            get
+            {
+                Vector2 global = new(ScreenPos.x + _cursorWidth, ScreenPos.y);//_cursor._renderLayer._gameObject.transform.TransformPoint(_cursor._renderLayer._mesh.vertices[_cursor.firstFacetIndex * 4]);
+                return global;
+            }
+        }
         public ChatTemplate(Menu.Menu menu, MenuObject owner, string displayText, Vector2 pos, Vector2 size) : base(menu, owner, pos, size)
         {
             labelColor = Menu.Menu.MenuColor(Menu.Menu.MenuColors.White);
@@ -64,7 +71,7 @@ namespace RainMeadow
                 _cursorWidth = lowest;
             cursorWrap.sprite.x = _cursorWidth + (ChatTextBox.cursorPos < menuLabel.label.text.Length ? 11f : 15f) + screenPos.x;
             cursorWrap.sprite.y = screenPos.y + size.y / 2;
-            cursorWrap.sprite.alpha = IsFoucsed() ? Mathf.PingPong(Time.time * 4f, 1f) : 0;
+            cursorWrap.sprite.alpha = IsFocused() ? Mathf.PingPong(Time.time * 4f, 1f) : 0;
             cursorWrap.sprite.isVisible = ChatTextBox.selectionPos == -1;
 
             int firstLetterViewed = ChatTextBox.cursorPos > maxVisibleLength ? ChatTextBox.cursorPos - maxVisibleLength : 0,
@@ -85,14 +92,16 @@ namespace RainMeadow
             }
             else 
                 selectionWrap.sprite.isVisible = false;
-            selectionWrap.sprite.alpha = IsFoucsed() ? 1f : 0f;
+            selectionWrap.sprite.alpha = IsFocused() ? 1f : 0f;
                 base.GrafUpdate(timeStacker);
             this.roundedRect.fillAlpha = 1.0f;
         }
 
-        public virtual bool IsFoucsed()
+        public virtual bool IsFocused()
         {
             return true;
         }
+
+     
     }
 }
