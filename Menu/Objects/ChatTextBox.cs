@@ -1,6 +1,8 @@
 ﻿using Menu;
 using Menu.Remix.MixedUI;
 using MonoMod.RuntimeDetour;
+using Newtonsoft.Json.Linq;
+using RainMeadow.UI.Components;
 using RainMeadow.UI.Interfaces;
 using System;
 using System.Collections;
@@ -12,12 +14,8 @@ using UnityEngine;
 
 namespace RainMeadow
 {
-    public class ChatTextBox : ChatTemplate, ICanBeTypedIME
+    public class ChatTextBox : ChatTemplate
     {
-        private Vector2 camPositionOffset;
-        private RenderTexture renderTexture;
-        private FTexture _texture;
-        private Camera cam;
         private ButtonTypingHandler typingHandler;
         private GameObject gameObject;
         private bool isUnloading = false;
@@ -29,14 +27,10 @@ namespace RainMeadow
         private float arrowRepeater = 0f;
         private bool clipboardHeld = false;
         private bool tabHeld = false;
-        private static List<IDetour>? inputBlockers;
-        public Action<char> OnKeyDown { get; set; }
-        public static bool blockInput = false;
         public const int textLimit = 100;
-        public static int cursorPos = 0;
-        public static int selectionPos = -1;
+        private static List<IDetour>? inputBlockers;
+        public static bool blockInput = false;
         public static int historyCursor = -1;
-        public static string lastSentMessage = "";
         public static string lastTyped = "";
 
         public static List<string> messageHistory = new();
@@ -65,7 +59,7 @@ namespace RainMeadow
             }
         }
         // Multiview Support
-        public bool focused, forceMenuMouseMode, lastFreezeMenuFunctions, lastMenuMouseMode, previouslySubmittedText;
+        public bool MultiView, focused, forceMenuMouseMode, lastFreezeMenuFunctions, lastMenuMouseMode, previouslySubmittedText;
 
         public bool Focused
         {
@@ -93,13 +87,13 @@ namespace RainMeadow
         public ChatTextBox(Menu.Menu menu, MenuObject owner, string displayText, Vector2 pos, Vector2 size, bool multiView = false) : base(menu, owner, displayText, pos, size)
         {
             MultiView = multiView;
-            lastSentMessage = "";
-            cursorPos = 0;
-            selectionPos = -1;
+            internalTextLimit = textLimit;
+            LastSentMessage = "";
+            CursorPos = 0;
+            SelectionPos = -1;
             historyCursor = messageHistory.Count;
             this.menu = menu;
             gameObject ??= new GameObject();
-            OnKeyDown = (Action<char>)Delegate.Combine(OnKeyDown, new Action<char>(CaptureInputs));
             typingHandler ??= gameObject.AddComponent<ButtonTypingHandler>();
             typingHandler.Assign(this);
             ShouldCapture(true);
@@ -110,28 +104,7 @@ namespace RainMeadow
                 else
                     cs.isInteracting = Focused;
             }
-            cam = new GameObject("maskchattextboxmask").AddComponent<Camera>();
-            int index = OpScrollBox._cameras.Count;
-            for (int i = 0; i < OpScrollBox._cameras.Count; i++)
-            {
-                if (OpScrollBox._cameras[i] == null)
-                {
-                    OpScrollBox._cameras[i] = cam;
-                    index = i;
-                    break;
-                }
-            }
-            cam.name += " " + index;
-            camPositionOffset = new (10000f, -10000f - 10300f * index);
 
-        }
-        public void UpdateMask()
-        {
-            cam.aspect = size.x / size.y;
-            cam.orthographic = true;
-            cam.orthographicSize = size.y / 2f;
-
-            if (renderTexture == null || !Mathf.Approximately(renderTexture.width, base.size.x) || !Mathf.Approximately(renderTexture.height, base.size.y))
         }
         public override void Clicked()
         {
@@ -178,7 +151,7 @@ namespace RainMeadow
         {
             if (!isUnloading)
             {
-                cursorPos = 0;
+                CursorPos = 0;
                 ShouldCapture(false);
                 isUnloading = true;
                 typingHandler.StartCoroutine(Unload(delay));
@@ -195,8 +168,29 @@ namespace RainMeadow
             }
 
         }
-        private void CaptureInputs(char input)
+        public override void SetIMECompositionString(string compositionString)
         {
+            if (compositionString == CompositionString)
+                return;
+
+
+            blockInput = false;
+            if (isUnloading) return;
+
+
+            menu.PlaySound(SoundID.MENU_Checkbox_Check);
+
+            if (SelectionActive)
+                DeleteSelection();
+            RainMeadow.Debug(compositionString);
+                CompositionString = compositionString;
+
+
+            blockInput = true;
+        }
+        public override void CaptureInputs(char input)
+        {
+            RainMeadow.Debug(input);
             // the "Delete" character, which is emitted by most - but not all - operating systems when ctrl and backspace are used together
             if (MultiView)
             {
@@ -223,25 +217,25 @@ namespace RainMeadow
                 }
             }
             if (input == '\u007F') return;
-            string msg = lastSentMessage;
+            string msg = LastSentMessage;
             blockInput = false;
             if (input == '\b')
             {
-                if (cursorPos > 0 || selectionPos != -1)
+                if (CursorPos > 0 || SelectionPos != -1)
                 {
                     menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
                     // selection position is -1 when nothing is selected
-                    if (selectionPos != -1)
+                    if (SelectionPos != -1)
                     {
                         // deletes the selected text
                         menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
                         DeleteSelection();
-                        if (cursorPos == lastSentMessage.Length) SetCursorSprite(false);
+                        if (CursorPos == LastSentMessage.Length) SetCursorSprite();
                     }
                     else
                     {
-                        lastSentMessage = msg.Remove(cursorPos - 1, 1);
-                        cursorPos--;
+                        LastSentMessage = msg.Remove(CursorPos - 1, 1);
+                        CursorPos--;
                     }
                 }
             }
@@ -303,33 +297,18 @@ namespace RainMeadow
                 // only resets the chat text box if in a story lobby menu, otherwise the text box is just destroyed
                 OnShutDownRequest?.Invoke();
                 typingHandler.Unassign(this);
-                lastSentMessage = "";
+                LastSentMessage = "";
                 completed = false;
                 return;
             }
             else if (!isUnloading)
             {
-                if (selectionPos != -1)
-                {
-                    // replaces the selected text with the emitted character
+                if (!CompositionActive)
                     menu.PlaySound(SoundID.MENU_Checkbox_Check);
-                    DeleteSelection();
-                    lastSentMessage = lastSentMessage.Insert(cursorPos, input.ToString());
-                    cursorPos++;
-                    if (cursorPos == lastSentMessage.Length)
-                    {
-                        SetCursorSprite(false);
-                    }
-                }
-                else if (msg.Length < textLimit)
-                {
-                    menu.PlaySound(SoundID.MENU_Checkbox_Check);
-                    lastSentMessage = msg.Insert(cursorPos, input.ToString());
-                    cursorPos++;
-                }
+                AddTextAtPos(input.ToString());
             }
             if (!isUnloading) blockInput = true;
-            UpdateLabel(lastSentMessage);
+            UpdateLabel();
         }
 
         public override void Update()
@@ -349,16 +328,6 @@ namespace RainMeadow
             {
                 menu.allowSelectMove = false;
             }
-
-            maxVisibleLength = VisibleTextLimit;
-        }
-
-        public void UpdateLabel(string text)
-        {
-            int firstLetterViewed = cursorPos > maxVisibleLength ? cursorPos - maxVisibleLength : 0,
-                lastLetterViewed = Mathf.Max(0, cursorPos > maxVisibleLength ? maxVisibleLength : Mathf.Min(maxVisibleLength, text.Length));
-
-            menuLabel.text = text.Substring(firstLetterViewed, lastLetterViewed);
         }
 
         public override void GrafUpdate(float timeStacker)
@@ -367,7 +336,7 @@ namespace RainMeadow
             {
                 ShouldCapture(Focused);
             }
-            var msg = lastSentMessage;
+            var msg = LastSentMessage;
             var len = msg.Length;
             var hasText = len > 0;
             blockInput = false;
@@ -377,7 +346,7 @@ namespace RainMeadow
                 return;
             }
             // ctrl backspace stuff here instead of CaptureInputs, because ctrl + backspace doesn't always emit a capturable character on some operating systems
-            if (Input.GetKey(KeyCode.Backspace) && (cursorPos > 0 || selectionPos != -1))
+            if (Input.GetKey(KeyCode.Backspace) && (CursorPos > 0 || SelectionActive))
             {
                 // reset @ blindly
                 if (completionMatches != null)
@@ -389,19 +358,19 @@ namespace RainMeadow
                 // activates on either the first frame the key is held, or for every (DASRepeatRate)th of a second after (DASDelay) seconds of being held
                 if (AnyCtrl && (backspaceHeld == 0 || (backspaceHeld >= DASDelay && backspaceRepeater >= DASRepeatRate)))
                 {
-                    if (selectionPos != -1)
+                    if (SelectionActive)
                     {
                         menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
                         DeleteSelection();
-                        if (cursorPos == lastSentMessage.Length) SetCursorSprite(false);
+                        if (CursorPos == LastSentMessage.Length) SetCursorSprite();
                     }
-                    else if (cursorPos > 0)
+                    else if (CursorPos > 0)
                     {
                         menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
-                        int space = msg.Substring(0, cursorPos - 1).LastIndexOf(' ') + 1;
-                        lastSentMessage = msg.Remove(space, cursorPos - space);
+                        int space = msg.Substring(0, CursorPos - 1).LastIndexOf(' ') + 1;
+                        LastSentMessage = msg.Remove(space, CursorPos - space);
                         //UpdateLabel(lastSentMessage);
-                        cursorPos = space;
+                        CursorPos = space;
                     }
                     backspaceRepeater %= DASRepeatRate; //Modulus instead of subtract so the repeater can't scale out of control if DeltaTime > DASRepeatRate.
                 }
@@ -411,30 +380,30 @@ namespace RainMeadow
 
             else if (Input.GetKey(KeyCode.Delete))
             {
-                if (selectionPos != -1)
+                if (SelectionActive)
                 {
                     menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
                     DeleteSelection();
                 }
-                else if ((backspaceHeld == 0 || (backspaceHeld >= DASDelay && backspaceRepeater >= DASRepeatRate)) && cursorPos < msg.Length)
+                else if ((backspaceHeld == 0 || (backspaceHeld >= DASDelay && backspaceRepeater >= DASRepeatRate)) && CursorPos < msg.Length)
                 {
                     if (AnyCtrl)
                     {
                         menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
-                        int space = msg.Substring(cursorPos, Mathf.Max(len - cursorPos, 0)).IndexOf(' ');
-                        lastSentMessage = msg.Remove(cursorPos, (space < 0 || space >= len) ? (space = Mathf.Max(len - cursorPos, 0)) : space + 1);
+                        int space = msg.Substring(CursorPos, Mathf.Max(len - CursorPos, 0)).IndexOf(' ');
+                        LastSentMessage = msg.Remove(CursorPos, (space < 0 || space >= len) ? (space = Mathf.Max(len - CursorPos, 0)) : space + 1);
                         //UpdateLabel(lastSentMessage);
 
                     }
                     else
                     {
                         menu.PlaySound(SoundID.MENY_Already_Selected_MultipleChoice_Clicked);
-                        lastSentMessage = msg.Remove(cursorPos, 1);
+                        LastSentMessage = msg.Remove(CursorPos, 1);
                         //UpdateLabel(lastSentMessage);
                     }
                     backspaceRepeater %= DASRepeatRate;
                 }
-                if (cursorPos == lastSentMessage.Length) SetCursorSprite(false);
+                if (CursorPos == LastSentMessage.Length) SetCursorSprite();
                 backspaceHeld += Time.deltaTime;
                 backspaceRepeater += Time.deltaTime;
             }
@@ -445,27 +414,27 @@ namespace RainMeadow
                 backspaceRepeater = 0f;
                 if (Input.GetKey(KeyCode.Home))
                 {
-                    bool changeSprite = cursorPos == len;
-                    cursorPos = 0;
-                    selectionPos = -1;
-                    if (changeSprite) SetCursorSprite(true);
+                    bool changeSprite = CursorPos == len;
+                    CursorPos = 0;
+                    SelectionPos = -1;
+                    if (changeSprite) SetCursorSprite();
                 }
 
-                else if (Input.GetKey(KeyCode.End) && cursorPos < len)
+                else if (Input.GetKey(KeyCode.End) && CursorPos < len)
                 {
-                    cursorPos = len;
-                    selectionPos = -1;
-                    SetCursorSprite(false);
+                    CursorPos = len;
+                    SelectionPos = -1;
+                    SetCursorSprite();
                 }
                 // double check
                 else if (Input.GetKey(KeyCode.A) && (AnyCtrl))
                 {
-                    if (cursorPos == len)
+                    if (CursorPos == len)
                     {
-                        SetCursorSprite(true);
+                        SetCursorSprite();
                     }
-                    cursorPos = 0;
-                    selectionPos = msg.Length;
+                    SelectionPos = 0;
+                    CursorPos = msg.Length;
                 }
 
                 // CTRL + C / Command + C
@@ -483,10 +452,9 @@ namespace RainMeadow
                 else if (Input.GetKey(KeyCode.V) && !clipboardHeld && (AnyCtrl))
                 {
                     menu.PlaySound(SoundID.MENU_Button_Standard_Button_Pressed);
-                    lastSentMessage = Paste(msg);
-                    UpdateLabel(lastSentMessage);
-                    cursorPos = Mathf.Min(lastSentMessage.Length, cursorPos + Clipboard.Length);
-                    selectionPos = -1;
+                    LastSentMessage = Paste(msg);
+                    CursorPos = Mathf.Min(LastSentMessage.Length, CursorPos + Clipboard.Length);
+                    SelectionPos = -1;
                     clipboardHeld = true;
                 }
                 // CTRL + X / Command + X
@@ -500,21 +468,15 @@ namespace RainMeadow
                 else if (Input.GetKey(KeyCode.LeftArrow))
                 {
                     // cursor position is used as the anchor for selection
-                    if ((cursorPos > 0 || selectionPos != -1) && (arrowHeld == 0 || (arrowHeld >= DASDelay && arrowRepeater >= DASRepeatRate)))
+                    if ((CursorPos > 0 || SelectionActive) && (arrowHeld == 0 || (arrowHeld >= DASDelay && arrowRepeater >= DASRepeatRate)))
                     {
                         var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                        var selectionActive = selectionPos != -1;
-                        if (selectionActive && !shiftHeld)
-                        {
-                            var changeSprite = cursorPos == len;
-                            if (selectionPos < cursorPos) cursorPos = selectionPos;
-                            selectionPos = -1;
-                            if (changeSprite) SetCursorSprite(true);
-                        }
+                        if (SelectionActive && !shiftHeld)
+                            SelectionPos = -1;
                         else
                         {
-                            var newPos = (shiftHeld && selectionActive) ? selectionPos : cursorPos;
-                            if (AnyCtrl && newPos > 0)
+                            var newPos = CursorPos;
+                            if (AnyCtrl && CursorPos > 0)
                             {
                                 newPos = msg.Substring(0, newPos - 1).LastIndexOf(' ') + 1;
                                 if (newPos < 0 || newPos > len) newPos = 0;
@@ -522,42 +484,31 @@ namespace RainMeadow
                             else newPos = Math.Max(0, newPos - 1);
                             if (shiftHeld)
                             {
-                                // stops the selection if it's on the same index as the anchor
-                                selectionPos = (newPos == cursorPos) ? -1 : newPos;
+                                if (newPos == SelectionPos)
+                                    SelectionPos = -1; // stops the selection if it's on the same index as the anchor
+                                else
+                                    SelectionPos = SelectionActive? SelectionPos : CursorPos;
                             }
-                            else
-                            {
-                                cursorPos = newPos;
-                                if (cursorPos < len) SetCursorSprite(true);
-                            }
+                            CursorPos = newPos;
                         }
                         arrowRepeater %= DASRepeatRate;
                     }
                     arrowHeld += Time.deltaTime;
                     arrowRepeater += Time.deltaTime;
                 }
-
                 else if (Input.GetKey(KeyCode.RightArrow))
                 {
-                    if ((cursorPos < len || selectionPos != -1) && (arrowHeld == 0 || (arrowHeld >= DASDelay && arrowRepeater >= DASRepeatRate)))
+                    if ((CursorPos < len || SelectionActive) && (arrowHeld == 0 || (arrowHeld >= DASDelay && arrowRepeater >= DASRepeatRate)))
                     {
                         var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                        var selectionActive = selectionPos != -1;
-                        if (selectionActive && !shiftHeld)
-                        {
-                            if (selectionPos > cursorPos) cursorPos = selectionPos;
-                            selectionPos = -1;
-                            if (cursorPos == len)
-                            {
-                                SetCursorSprite(false);
-                            }
-                        }
+                        if (SelectionActive && !shiftHeld)
+                            SelectionPos = -1;
                         else
                         {
                             // starts from the end of the selection if a selection exists
-                            if (!selectionActive || selectionPos < msg.Length)
+                            if (!SelectionActive || SelectionPos < msg.Length)
                             {
-                                var newPos = (shiftHeld && selectionActive) ? selectionPos : cursorPos;
+                                var newPos = CursorPos;
                                 if (AnyCtrl)
                                 {
                                     int space = msg.Substring(newPos, len - newPos - 1).IndexOf(' ');
@@ -567,13 +518,12 @@ namespace RainMeadow
                                 else newPos++;
                                 if (shiftHeld)
                                 {
-                                    selectionPos = (newPos == cursorPos) ? -1 : newPos;
+                                    if (newPos == SelectionPos)
+                                        SelectionPos = -1; // stops the selection if it's on the same index as the anchor
+                                    else
+                                        SelectionPos = SelectionActive ? SelectionPos : CursorPos;
                                 }
-                                else
-                                {
-                                    cursorPos = newPos;
-                                    if (newPos == len) SetCursorSprite(false);
-                                }
+                                CursorPos = newPos;
                             }
                         }
                         arrowRepeater %= DASRepeatRate;
@@ -617,20 +567,11 @@ namespace RainMeadow
             base.GrafUpdate(timeStacker);
         }
 
-        private void DeleteSelection()
-        {
-            lastSentMessage = lastSentMessage.Remove(Mathf.Min(cursorPos, selectionPos), Mathf.Abs(selectionPos - cursorPos));
-            //UpdateLabel(lastSentMessage);
-            if (selectionPos < cursorPos) cursorPos = selectionPos;
-            selectionPos = -1;
-        }
-
         public void HandleTextSubmit()
         {
-            lastSentMessage = "";
-            menuLabel.text = "";
-            cursorPos = 0;
-            selectionPos = -1;
+            LastSentMessage = "";
+            CursorPos = 0;
+            SelectionPos = -1;
             historyCursor = messageHistory.Count;
             lastCompletion = "";
             completed = false;
@@ -640,8 +581,8 @@ namespace RainMeadow
 
         private void CopySelection()
         {
-            if (selectionPos == -1) return;
-            Clipboard = lastSentMessage.Substring(Mathf.Max(0, Mathf.Min(cursorPos, selectionPos)), Mathf.Abs(selectionPos - cursorPos));
+            if (SelectionPos == -1) return;
+            Clipboard = LastSentMessage.Substring(Mathf.Max(0, Mathf.Min(CursorPos, SelectionPos)), Mathf.Abs(SelectionPos - CursorPos));
         }
 
         private string Paste(string msg)
@@ -661,7 +602,7 @@ namespace RainMeadow
             if (paste.Length > space) paste = paste.Substring(0, space);
 
             RainMeadow.Debug($"Pasted {paste.Length} chars from clipboard.");
-            return msg.Insert(Mathf.Clamp(cursorPos, 0, msg.Length), paste);
+            return msg.Insert(Mathf.Clamp(CursorPos, 0, msg.Length), paste);
         }
 
         private string Clean(string msg)
@@ -677,31 +618,31 @@ namespace RainMeadow
             if (index == last)
             {
                 historyCursor = last;
-                lastSentMessage = lastTyped;
+                LastSentMessage = lastTyped;
             }
             else
             {
                 if (historyCursor == last)
                 {
-                    lastTyped = lastSentMessage;
+                    lastTyped = LastSentMessage;
                 }
 
                 historyCursor = index;
-                lastSentMessage = messageHistory[index];
+                LastSentMessage = messageHistory[index];
             }
             //UpdateLabel(lastSentMessage);
-            cursorPos = lastSentMessage.Length;
-            selectionPos = -1;
+            CursorPos = LastSentMessage.Length;
+            SelectionPos = -1;
         }
 
         private void AutoComplete()
         {
-            int lastAt = lastSentMessage.LastIndexOf('@', cursorPos - 1 >= 0 ? cursorPos - 1 : 0);
+            int lastAt = LastSentMessage.LastIndexOf('@', CursorPos - 1 >= 0 ? CursorPos - 1 : 0);
             string currentSearchPrefix = "";
 
             if (lastAt != -1)
             {
-                currentSearchPrefix = lastSentMessage.Substring(lastAt + 1, cursorPos - (lastAt + 1));
+                currentSearchPrefix = LastSentMessage.Substring(lastAt + 1, CursorPos - (lastAt + 1));
             }
             if (completionMatches != null && completionStartPos != lastAt)
             {
@@ -730,11 +671,11 @@ namespace RainMeadow
             {
                 string match = completionMatches[completionIndex % completionMatches.Count];
 
-                string prefix = lastSentMessage.Substring(0, completionStartPos + 1);
-                string suffix = lastSentMessage.Substring(cursorPos);
+                string prefix = LastSentMessage.Substring(0, completionStartPos + 1);
+                string suffix = LastSentMessage.Substring(CursorPos);
 
-                lastSentMessage = prefix + match + suffix;
-                cursorPos = prefix.Length + match.Length;
+                LastSentMessage = prefix + match + suffix;
+                CursorPos = prefix.Length + match.Length;
 
                 completionIndex++;
                 menu.PlaySound(SoundID.MENU_Button_Select_Gamepad_Or_Keyboard);
@@ -782,25 +723,6 @@ namespace RainMeadow
             return i;
         }
 
-        private void SetCursorSprite(bool inMiddle)
-        {
-            int lowestCursorPos = selectionPos != -1 ? Mathf.Min(cursorPos, selectionPos) : cursorPos;
-            float width = LabelTest.GetWidth(menuLabel.label.text.Substring(0, lowestCursorPos > maxVisibleLength ? menuLabel.label.text.Length : lowestCursorPos), false);
-            if (inMiddle)
-            {
-                _cursor.element = Futile.atlasManager.GetElementWithName("pixel");
-                _cursor.height = 13f;
-                _cursorWidth = width;
-                cursorWrap.sprite.x = width + 11f + pos.x;
-            }
-            else
-            {
-                _cursor.element = Futile.atlasManager.GetElementWithName("modInputCursor");
-                _cursor.height = 6f;
-                _cursorWidth = width;
-                cursorWrap.sprite.x = width + 15f + pos.x;
-            }
-        }
 
         public static void InvokeShutDownChat()
         {

@@ -174,7 +174,7 @@ namespace RainMeadow
             RainMeadow.DebugMe();
             if (chatInputOverlay != null)
             {
-                if (!string.IsNullOrEmpty(ChatTextBox.lastSentMessage) && chatLogOverlay != null) chatLogOverlay.scroller.MoveToBoundary(UI.Systems.ScrollSystem.Direction.Bottom, true);
+                if (!string.IsNullOrEmpty(chatInputOverlay.chat.LastSentMessage) && chatLogOverlay != null) chatLogOverlay.scroller.MoveToBoundary(UI.Systems.ScrollSystem.Direction.Bottom, true);
                 chatInputOverlay.chat.DelayedUnload(0.1f);
                 chatInputOverlay.RemoveSprites();
                 chatInputOverlay = null;
