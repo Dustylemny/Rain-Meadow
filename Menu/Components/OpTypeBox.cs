@@ -1,5 +1,6 @@
 ﻿using Menu.Remix;
 using Menu.Remix.MixedUI;
+using RainMeadow.UI.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,12 +12,32 @@ namespace RainMeadow.UI.Components
 {
     //Basically OpTextBox but uses the scrapped copy/paste features
     //rn just replaces the entire value from clipboard
-    public class OpTypeBox : OpTextBox
+    public class OpTypeBox : OpTextBox, ICanBeTypedIME
     {
-        public bool lastCopyHeld, lastPasteHeld;
+        public string compositionString = "";
+        public bool lastCopyHeld, lastPasteHeld, imeSupported;
+        public Vector2 CursorScreenPos => ScreenPos + new Vector2(_curTextWidth + LabelTest.CharMean(false), 0);
         public OpTypeBox(ConfigurableBase config, Vector2 pos, float sizeX) : base(config, pos, sizeX)
         {
 
+        }
+        public void AddIMESupport()
+        {
+            if (password)
+            {
+                RainMeadow.Error("meant for password!");
+                return;
+            }
+            ButtonTypingHandler.AssignTypeable(this);
+        }
+        public override void Change()
+        {
+            base.Change();
+            if (compositionString.Length > 0)
+            {
+                label.text += compositionString;
+                _curTextWidth = LabelTest.GetWidth(label.text, false);
+            }
         }
         public override bool CopyFromClipboard(string value)
         {
@@ -52,5 +73,14 @@ namespace RainMeadow.UI.Components
             lastCopyHeld = cpy;
             lastPasteHeld = pste;
         }
+        public void SetIMEComposition(string composition)
+        {
+            if (compositionString == composition) return;
+            PlaySound(SoundID.MENU_Checkbox_Uncheck);
+            compositionString = composition;
+            Change();
+        }
+        public bool IsFocused() => Focused;
+        public bool IsTypingHeld() => held;
     }
 }

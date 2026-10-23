@@ -16,8 +16,6 @@ namespace RainMeadow
 {
     public class ChatTextBox : ChatTemplate
     {
-        private ButtonTypingHandler typingHandler;
-        private GameObject gameObject;
         private bool isUnloading = false;
         private float DASDelay = 1f / 2f; //In seconds
         private float DASRepeatRate = 1f / 30f; //In seconds/proc
@@ -71,7 +69,6 @@ namespace RainMeadow
             }
         }
         public bool IgnoreSelect => (focused && !menu.manager.menuesMouseMode);
-        public bool TypingOnOtherObjects => CanBeTypedExt._handler?._focused != null;
         public bool DontGetInputs => menu.FreezeMenuFunctions || lastFreezeMenuFunctions || !menu.Active || page != menu.pages.GetValueOrDefault(menu.currentPage);
         //
         public static bool AnyCtrl => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.LeftApple);
@@ -93,9 +90,7 @@ namespace RainMeadow
             SelectionPos = -1;
             historyCursor = messageHistory.Count;
             this.menu = menu;
-            gameObject ??= new GameObject();
-            typingHandler ??= gameObject.AddComponent<ButtonTypingHandler>();
-            typingHandler.Assign(this);
+            ButtonTypingHandler.AssignTypeable(this);
             ShouldCapture(true);
             if (OnlineManager.lobby.clientSettings.TryGetValue(OnlineManager.mePlayer, out var cs))
             {
@@ -126,7 +121,7 @@ namespace RainMeadow
                 SetFocused(false, menu.selectedObject == null || buttonBehav.greyedOut ? null : SoundID.None);
                 return;
             }
-            if (TypingOnOtherObjects)
+            if (ButtonTypingHandler.TypingOnOthers)
                 SetFocused(false, SoundID.None);
         }
         public void HandleDeselect()
@@ -154,21 +149,16 @@ namespace RainMeadow
                 CursorPos = 0;
                 ShouldCapture(false);
                 isUnloading = true;
-                typingHandler.StartCoroutine(Unload(delay));
+                ButtonTypingHandler.Instance?.StartCoroutine(Unload(delay));
             }
         }
         private IEnumerator Unload(float delay)
         {
             yield return new WaitForSeconds(delay);
-            if (typingHandler != null)
-            {
-                typingHandler.Unassign(this);
-                typingHandler.OnDestroy();
-                blockInput = false;
-            }
-
+            ButtonTypingHandler.UnassignTypeable(this);
+            blockInput = false;
         }
-        public override void SetIMECompositionString(string compositionString)
+        public override void SetIMEComposition(string compositionString)
         {
             if (compositionString == CompositionString)
                 return;
@@ -182,7 +172,6 @@ namespace RainMeadow
 
             if (SelectionActive)
                 DeleteSelection();
-            RainMeadow.Debug(compositionString);
                 CompositionString = compositionString;
 
 
@@ -200,7 +189,7 @@ namespace RainMeadow
                 {
                     Player.InputPackage currentInput = RWInput.PlayerUIInput(-1); //race conditions when update isnt called on time
                     bool shouldActuallyGetInput = menu.selectedObject == null || (!menu.pressButton && !menu.holdButton && !menu.lastHoldButton && !menu.modeSwitch && !currentInput.jmp);
-                    if (Input.GetKeyDown(RainMeadow.rainMeadowOptions.ChatButtonKey.Value) && shouldActuallyGetInput && !TypingOnOtherObjects)
+                    if (Input.GetKeyDown(RainMeadow.rainMeadowOptions.ChatButtonKey.Value) && shouldActuallyGetInput && !ButtonTypingHandler.TypingOnOthers)
                     {
                         if (AnyShift && RainMeadow.rainMeadowOptions.EnableChatLogErrorToggle.Value)
                         {
@@ -296,7 +285,7 @@ namespace RainMeadow
                 }
                 // only resets the chat text box if in a story lobby menu, otherwise the text box is just destroyed
                 OnShutDownRequest?.Invoke();
-                typingHandler.Unassign(this);
+                ButtonTypingHandler.UnassignTypeable(this);
                 LastSentMessage = "";
                 completed = false;
                 return;

@@ -9,7 +9,6 @@ namespace RainMeadow
 {
     public abstract class ChatTemplate : ButtonTemplate, ICanBeTypedIME
     {
-        public Action<string> SetIMEComposition { get; set; }
         public Action<char> OnKeyDown { get; set; }
         public HSLColor labelColor;
         public AlignedMenuLabel menuLabel;
@@ -178,7 +177,6 @@ namespace RainMeadow
             subObjects.AddRange([roundedRect, uiMask, menuLabel]);
 
             OnKeyDown = (Action<char>)Delegate.Combine(OnKeyDown, new Action<char>(CaptureInputs));
-            SetIMEComposition = (Action<string>)Delegate.Combine(SetIMEComposition, new Action<string>(SetIMECompositionString));
         }
         public void AddTextAtPos(string t)
         {
@@ -209,7 +207,7 @@ namespace RainMeadow
             SelectionPos = -1;
             UpdateTextPositionOffset();
         }
-        public abstract void SetIMECompositionString(string compositionString);
+        public abstract void SetIMEComposition(string compositionString);
         public abstract void CaptureInputs(char c);
         public int ClampCursorPos(int pos)
         {
@@ -310,7 +308,7 @@ namespace RainMeadow
             _cursor.isVisible = !SelectionActive;
 
             compositionUnderline.x = menuLabelTextPos.x + compositionUnderlineWidth;
-            compositionUnderline.y = menuLabelTextPos.y + menuLabel.label.textRect.y - 3;
+            compositionUnderline.y = menuLabel.label.textRect.y - 3;
             compositionUnderline.isVisible = CompositionActive;
 
             if (SelectionActive)
@@ -329,7 +327,7 @@ namespace RainMeadow
                 base.GrafUpdate(timeStacker);
             this.roundedRect.fillAlpha = 1.0f;
         }
-
+        public virtual bool IsTypingHeld() => IsFocused();
         public virtual bool IsFocused()
         {
             return true;

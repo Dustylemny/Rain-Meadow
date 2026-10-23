@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -86,6 +87,9 @@ namespace RainMeadow
                 IL.Menu.MenuObject.Update += MenuObject_Update_AbnormallyLongUpdate;
                 IL.Menu.MenuObject.GrafUpdate += MenuObject_GrafUpdate_AbnormallyLongUpdate;
             }
+
+            new ILHook(typeof(OpTextBox).GetProperty("value", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public).SetMethod, OpTextBox_SetValue);
+            On.Menu.Remix.MixedUI.CanBeTypedExt.Unassign += CanBeTypedExtFixUnassign;
         }
 
         private const int UpdateAbnormalThreshold = 70;
@@ -99,7 +103,7 @@ namespace RainMeadow
             try
             {
                 ILCursor cursor = new(il);
-                MethodBody body = il.Body;
+                Mono.Cecil.Cil.MethodBody body = il.Body;
 
                 VariableDefinition stopWatch = new(
                     il.Module.ImportReference(typeof(Stopwatch))
@@ -134,7 +138,37 @@ namespace RainMeadow
                 Error($"Error while IL hooking : {e}");
             }
         }
-
+        private void CanBeTypedExtFixUnassign(On.Menu.Remix.MixedUI.CanBeTypedExt.orig_Unassign orig, ICanBeTyped typable)
+        {
+            ButtonTypingHandler.UnassignTypeable(typable);
+            orig(typable);
+        }
+        private void OpTextBox_SetValue(ILContext il)
+        {
+            try
+            {
+                ILCursor c = new(il), c2 = new(il);
+                while (c.TryGotoNext(x => x.MatchLdstr(out _), x => x.MatchCall(typeof(Regex), "IsMatch")))
+                {
+                    c.Index++;
+                    c.Emit(OpCodes.Ldarg_0);
+                    c.EmitDelegate(delegate (string origString, OpTextBox txtBox)
+                    {
+                        if (!origString.Contains("[") || !origString.Contains("]")) return origString;
+                        if (ButtonTypingHandler.TypeableIsAssigned(txtBox))
+                        {
+                            int startIndex = origString.IndexOf("[");
+                            origString = origString.Insert(startIndex + 1, ButtonTypingHandler.AdditionalValidRegex);
+                        }
+                        return origString;
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                RainMeadow.Error(ex);
+            }
+        }
         private void SlugcatSelectMenu_ctor(ILContext il)
         {
             try

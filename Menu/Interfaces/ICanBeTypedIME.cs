@@ -11,7 +11,8 @@ namespace RainMeadow.UI.Interfaces
     public interface ICanBeTypedIME : ICanBeTyped
     {
         public Vector2 CursorScreenPos { get; }
-        public Action<string> SetIMEComposition { get; }
+        public void SetIMEComposition(string composition);
         public bool IsFocused();
+        public bool IsTypingHeld();
     }
 }

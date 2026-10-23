@@ -15,7 +15,7 @@ namespace RainMeadow.UI.Components;
 public class LobbyCardSelector : ButtonScroller, SelectOneButton.SelectOneButtonOwner
 {
     public MenuTabWrapper tabWrapper;
-    public OpTextBox searchBar;
+    public OpTypeBox searchBar;
     public SimplerSymbolButton refreshButton,
         sortButton;
     public LobbyInfo[] lobbyInfos = [];
@@ -60,7 +60,7 @@ public class LobbyCardSelector : ButtonScroller, SelectOneButton.SelectOneButton
         AddScrollUpDownButtons(100, 34);
         CreateSideButtonLines();
 
-        searchBar = new OpTextBox(new Configurable<string>(""), new Vector2(0, size.y), 500)
+        searchBar = new OpTypeBox(new Configurable<string>(""), new Vector2(0, size.y), 500)
         {
             accept = OpTextBox.Accept.StringASCII,
             allowSpace = true,
@@ -75,6 +75,7 @@ public class LobbyCardSelector : ButtonScroller, SelectOneButton.SelectOneButton
             filter.FilterInfos(lobbyInfos);
             UpdateLobbyCards();
         };
+        searchBar.AddIMESupport();
 
         refreshButton = new SimplerSymbolButton(
             menu,

@@ -9,19 +9,29 @@ using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace RainMeadow
 {
     public class ButtonTypingHandler : TypingHandler
     {
+        public const string AdditionalValidRegex = @"\p{L}\p{M}";
+        public static ButtonTypingHandler? Instance { get; private set; }
+        public static bool TypingOnOthers => CanBeTypedExt._handler != null && CanBeTypedExt._handler._focused != null;
         public string lastCompositionString = "";
-        public new string _lastInput = "";
-        public new HashSet<ICanBeTyped> _assigned = new HashSet<ICanBeTyped>();
-        public new ICanBeTyped? _focused, lastFocused;
-        public static bool TypableIsFocused(ICanBeTyped typeable)
+        public ICanBeTyped? lastFocused;
+        public static bool TypeableIsHeld(ICanBeTyped typeable)
         {
-            return (typeable is UIfocusable uIfocusable && uIfocusable.Focused) || (typeable is ICanBeTypedIME imeType && imeType.IsFocused());
+            if (typeable is ICanBeTypedIME imeType)
+                return imeType.IsTypingHeld();
+            return typeable is UIfocusable uIfocusable && uIfocusable.held;
+        }
+        public static bool TypeableIsFocused(ICanBeTyped typeable)
+        {
+            if (typeable is ICanBeTypedIME imeType && imeType.IsFocused())
+                return imeType.IsFocused();
+            return typeable is UIfocusable uIfocusable && uIfocusable.Focused;
         }
         public static Vector2 FixUIPosToScreen(Vector2 pos, bool isPositionPt = true)
         {
@@ -49,6 +59,20 @@ namespace RainMeadow
             return new(0, 0);
         }
         public static Vector2 GetTextCursorPos(ICanBeTyped typeable) =>  FixUIPosToScreen(LocalCursorPosOfTypeable(typeable));
+        public static void AssignTypeable(ICanBeTyped typable)
+        {
+            CanBeTypedExt.Unassign(typable);
+            Instance ??= new GameObject("ExtraBTNTyping").AddComponent<ButtonTypingHandler>();
+            Instance.Assign(typable);
+        }
+        public static void UnassignTypeable(ICanBeTyped typable)
+        {
+            Instance?.Unassign(typable);
+        }
+        public static bool TypeableIsAssigned(ICanBeTyped typable)
+        {
+            return Instance != null && Instance.IsAssigned(typable);
+        }
         public new void Update()
         {
             if (_assigned.Count < 1)
@@ -56,13 +80,13 @@ namespace RainMeadow
                 Destroy(base.gameObject);
                 return;
             }
-            if (_focused != null)
+            if (_focused != null && (TypingOnOthers || !TypeableIsHeld(_focused)))
                 _focused = null;
             if (_focused == null)
             {
                 foreach (ICanBeTyped canBeTyped in _assigned)
                 {
-                    if (TypableIsFocused(canBeTyped))
+                    if (TypeableIsFocused(canBeTyped))
                     {
                         _focused = canBeTyped;
                         break;
@@ -96,7 +120,6 @@ namespace RainMeadow
                 if (!hashSet.Contains(inputString[j]))
                 {
                     queue.Enqueue(inputString[j]);
-                    RainMeadow.Debug("Queued input " + inputString[j]);
                 }
             }
 
@@ -111,15 +134,7 @@ namespace RainMeadow
             _assigned.Clear();
             _focused = null;
             Input.imeCompositionMode = IMECompositionMode.Auto;
-            CanBeTypedExt._HandlerOnDestroy();
-        }
-        public new void Assign(ICanBeTyped typable)
-        {
-            _assigned.Add(typable);
-        }
-        public new void Unassign(ICanBeTyped typable)
-        {
-            _assigned.Remove(typable);
+            Instance = null;
         }
        
     }
