@@ -224,7 +224,11 @@ namespace RainMeadow
 
             ChatLogManager.LogSystemMessage((player.id.GetPersonaName()) + " " + Utils.Translate("left the game."), ChatLogManager.SystemMessageType.PlayerJoin);
         }
-
+        public void HandlePlayerKick(OnlinePlayer player)
+        {
+            HandleDisconnect(player);
+            OnPlayerListReceivedEvent([..playerList]);
+        }
         public abstract MeadowPlayerId GetEmptyId();
 
         public abstract string GetLobbyID();

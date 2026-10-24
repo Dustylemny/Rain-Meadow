@@ -33,7 +33,12 @@ namespace RainMeadow
 
         public static void BanUser(OnlinePlayer steamUser)
         {
-            steamUser.InvokeRPC(RPCs.KickToLobby);
+            steamUser.InvokeRPC(RPCs.KickToLobby).Then((_) =>
+            {
+                if (OnlineManager.lobby?.isOwner == true)
+                    for (int i = 0; i < OnlineManager.players.Count; i++)
+                    OnlineManager.players[i].InvokeRPC(RPCs.ForceDisconnectPlayer, steamUser);
+            });
             if (OnlineManager.lobby.bannedUsers == null)
             {
                 OnlineManager.lobby.bannedUsers = new();

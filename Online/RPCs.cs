@@ -1,6 +1,7 @@
-﻿using System;
+﻿using RWCustom;
+using Steamworks;
+using System;
 using System.Linq;
-using RWCustom;
 using UnityEngine;
 using Watcher;
 
@@ -156,7 +157,7 @@ namespace RainMeadow
         {
             RainMeadow.Debug($"{rpc.from} is trying to kick {rpc.to}");
             if (OnlineManager.lobby.owner != rpc.from) return; // Only respond if its the host kicking the player
-            if ((RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game && game.manager.upcomingProcess is not null))
+            /*if ((RWCustom.Custom.rainWorld.processManager.currentMainLoop is RainWorldGame game && game.manager.upcomingProcess is not null))
             {
                 if (RWCustom.Custom.rainWorld.processManager.musicPlayer != null)
                 {
@@ -167,9 +168,14 @@ namespace RainMeadow
             }
             RWCustom.Custom.rainWorld.processManager.RequestMainProcessSwitch(RainMeadow.Ext_ProcessID.LobbySelectMenu);
             BanHammer.ShowBan(RWCustom.Custom.rainWorld.processManager);
-            OnlineManager.LeaveLobby();
+            OnlineManager.LeaveLobby();*/
         }
-
+        [RPCMethod]
+        public static void ForceDisconnectPlayer(RPCEvent rpc, OnlinePlayer player)
+        {
+            if (OnlineManager.lobby.owner != rpc.from) return;
+            MatchmakingManager.currentInstance.HandlePlayerKick(player);
+        }
         [RPCMethod]
         public static void ExitToGameModeMenu(RPCEvent rpc)
         {
