@@ -16,7 +16,7 @@ namespace RainMeadow
     //Could support horizontal but it's mostly built to be vertical
     public class ButtonScroller : RectangularMenuObject, Slider.ISliderOwner, IPLEASEUPDATEME, IScrollObjectHolder
     {
-        public bool sliderDefaultIsDown, greyOutWhenNoScroll, isScrolling, buttonsDirty, lastButtonsDirty;
+        public bool sliderDefaultIsDown, greyOutWhenNoScroll, isScrolling, disableScrollWheel, buttonsDirty, lastButtonsDirty;
         public float desiredScrollOffset, scrollOffset, prevScrollOffset, floatScrollSpeed, scrollSliderValue, scrollSliderValueCap
             , maxScrollSpeed = 1.2f, scrollSliderCapLerp = 0.02f, scrollSliderCapTick = 0.05f;
         public Slider scrollSlider;
@@ -56,8 +56,8 @@ namespace RainMeadow
             get => gridSystem.StartEndWithSpacingInAxis;
             set => gridSystem.StartEndWithSpacingInAxis = value;
         }
-        public bool CanScroll => !menu.FreezeMenuFunctions;
         public bool ScrollObjectsDirty => lastButtonsDirty;
+        public bool ScrollWheelBlockedByObjects { get; set; }
         public virtual FContainer ItemContainer => itemContainer;
         public TextAnchor SetTextAnchor { set => gridSystem.ScrollPosAnchor = value == TextAnchor.Top ? ScrollSystem.Anchor.TopLeft : ScrollSystem.Anchor.BottomLeft; }
         public bool IsHidden { get; set; }
@@ -158,8 +158,10 @@ namespace RainMeadow
             UpdateGridSystem();
             lastButtonsDirty = buttonsDirty;
             buttonsDirty = false;
+            ScrollWheelBlockedByObjects = false;
             base.Update(); 
-            if (!IsHidden && CanScroll && base.MouseOver && menu.manager.menuesMouseMode) ScrollingUpdate(menu.mouseScrollWheelMovement);
+            if (!IsHidden && base.MouseOver && menu.manager.menuesMouseMode && !menu.FreezeMenuFunctions && !ScrollWheelBlockedByObjects && !disableScrollWheel) 
+                ScrollingUpdate(menu.mouseScrollWheelMovement);
                 /*for (int i = 0; i < buttons.Count; i++)
                 {
                     buttons[i].Size = new(buttons[i].Size.x, buttonHeight);

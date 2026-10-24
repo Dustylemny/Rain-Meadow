@@ -1,4 +1,5 @@
 ﻿using Menu;
+using Menu.Remix;
 using RainMeadow.UI.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,10 @@ namespace RainMeadow.UI.Systems
         public IScrollObjectHolder? scroller; //you could have a parent in scroller but have access to this
         public int indexInScroller = -1;
         public bool isValidForScroller;
+        /// <summary>
+        /// Prevents scroller from reading scrollwheel if this is true. It's automatically set if menuobject is a UIElementWrapper based on the UIFocusable
+        /// </summary>
+        public bool blockScrollWheel;
         public FContainer objectContainer; //default is myContainer, you can change this
         public float desiredAlpha = 1;
         public float ContainedAlpha
@@ -117,8 +122,17 @@ namespace RainMeadow.UI.Systems
                 cachedParentInScroller = ParentInScroller;
                 scroller = cachedParentInScroller?.scroller;
             }
-            if (scroller == null || cachedParentInScroller != null) return;
-            if (!scroller.ScrollObjectsDirty) return;
+            if (scroller == null) return;
+
+            if (menuObject is UIelementWrapper uiElementWrapper && uiElementWrapper.IsFocusable)
+            {
+                var focusable = uiElementWrapper.ThisFocusable;
+                blockScrollWheel = !focusable.IsInactive && focusable.CurrentlyFocusableMouse && focusable.MouseOver && focusable.mouseOverStopsScrollwheel;
+            }
+            if (blockScrollWheel && !scroller.ScrollWheelBlockedByObjects)
+                scroller.ScrollWheelBlockedByObjects = true;
+
+            if (cachedParentInScroller != null || !scroller.ScrollObjectsDirty) return;
             Size = scroller.SizeOfObject(Size);
             var pos = LocalPos = scroller.PositionOfObject(indexInScroller, LocalPos);
             LocalAlpha = scroller.AlphaOfObject(pos, Size);

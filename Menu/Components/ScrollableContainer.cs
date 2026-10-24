@@ -22,8 +22,8 @@ namespace RainMeadow.UI.Components
     /// </summary>
     public class ScrollableContainer : RectangularMenuObject, IScrollObjectHolder, IPLEASEUPDATEME, Slider.ISliderOwner
     {
-        public float scrollSliderCapLerp = 0.02f, scrollSliderCapTick = 0.05f, floatScrollMultipler = 100f;
-        public bool scrollableDirty = true, lastScrollableDirty = true, sliderDefaultIsDown, isScrolling;
+        public float scrollSliderCapLerp = 0.02f, scrollSliderCapTick = 0.05f, floatScrollMultipler = 50f;
+        public bool scrollableDirty = true, lastScrollableDirty = true, sliderDefaultIsDown, isScrolling, disableScrollWheel;
         public float scrollSliderValueCap, scrollSliderValue, scrollSpeed, desiredScrollPosOffset, floatScrollPosOffset, prevFloatScrollPosOffset;
         public MenuScrollObject? _content;
         public readonly ContentScrollSystem contentSystem;
@@ -34,6 +34,7 @@ namespace RainMeadow.UI.Components
         public override bool MouseOver => uiMask.MouseOverTexture;
         public bool IsHidden { get; set; }
         public bool ScrollObjectsDirty => lastScrollableDirty;
+        public bool ScrollWheelBlockedByObjects { get; set; }
         public FContainer ItemContainer => itemMaskContainer;
         public MenuScrollObject? ContentObject
         {
@@ -105,7 +106,7 @@ namespace RainMeadow.UI.Components
         public void AddScroll(float scrollAmt)
         {
             scrollAmt *= floatScrollMultipler;
-            if (contentSystem.TryAddScrollThroughWheel(scrollAmt * 5, ref desiredScrollPosOffset))
+            if (contentSystem.TryAddScrollThroughWheel(scrollAmt, ref desiredScrollPosOffset))
             {
                 menu.PlaySound(SoundID.MENU_Scroll_Tick);
                 isScrolling = true;
@@ -158,10 +159,11 @@ namespace RainMeadow.UI.Components
             {
                 lastScrollableDirty = scrollableDirty;
                 scrollableDirty = false;
+                ScrollWheelBlockedByObjects = false;
                 base.Update();
             }
 
-            if (!menu.FreezeMenuFunctions && !IsHidden && base.MouseOver && menu.manager.menuesMouseMode)
+            if (!menu.FreezeMenuFunctions && !IsHidden && base.MouseOver && menu.manager.menuesMouseMode && !ScrollWheelBlockedByObjects && !disableScrollWheel)
                 AddScroll(menu.mouseScrollWheelMovement);
 
             UpdateScroll();

@@ -14,8 +14,26 @@ namespace RainMeadow.UI.Systems
         public bool _startEndWithSpacingInAxis, _automaticallyCalculateElementOppositeSize;
         public float cachedVisibleItemsShown;
         public int elementCount;
-        public float ElementSpacingInAxis => ElementSpacing[IndexToRef];
-        public float ElementSizeInAxis => ElementSize[IndexToRef];
+        public float ElementSpacingInAxis
+        {
+            get => ElementSpacing[IndexToRef];
+            set
+            {
+                var newElementSpacing = ElementSpacing;
+                newElementSpacing[IndexToRef] = value;
+                ElementSpacing = newElementSpacing;
+            }
+        }
+        public float ElementSizeInAxis
+        {
+            get => ElementSize[IndexToRef];
+            set
+            {
+                var newElementSize = ElementSize;
+                newElementSize[IndexToRef] = value;
+                ElementSize = newElementSize;
+            }
+        }
         public Vector2 ElementSpacing
         {
             get => _elementSpacing;
